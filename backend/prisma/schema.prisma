@@ -36,6 +36,8 @@ model User {
   createdIssues   Issue[]      @relation("IssueCreator")
   assignedIssues  Issue[]      @relation("IssueAssignee")
   createdNotices  Notice[]     @relation("NoticeCreator")
+  sentMessages     Message[]   @relation("MessageSender")
+  receivedMessages Message[]   @relation("MessageRecipient")
 }
 
 enum Role {
@@ -448,4 +450,21 @@ model MeetingParticipant {
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([meetingId, userId])
+}
+
+// ─── Message (사용자 간 쪽지) ──────────────────────────────────────────────────
+
+model Message {
+  id          String   @id @default(uuid())
+  content     String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  senderId    String
+  sender      User     @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipientId String
+  recipient   User     @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([senderId, recipientId])
+  @@index([recipientId, isRead])
 }

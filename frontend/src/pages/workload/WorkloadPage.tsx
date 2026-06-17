@@ -9,6 +9,9 @@ import { tasksApi } from '../../api/tasks';
 import { usersApi } from '../../api/users';
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../../components/ui/Avatar';
+import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { PageHeader } from '../../components/ui/PageHeader';
 import { formatDate, cn } from '../../lib/utils';
 
 interface AddWorkLogForm {
@@ -150,18 +153,15 @@ export function WorkloadPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900">워크로드</h1>
-          <p className="text-xs text-gray-500 mt-0.5">담당자별 일감 등록 및 공수 현황</p>
-        </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
-        >
-          <Plus size={15} /> 일감 등록
-        </button>
-      </div>
+      <PageHeader
+        title="워크로드"
+        description="담당자별 일감 등록 및 공수 현황"
+        actions={
+          <Button variant="primary" onClick={() => setShowAddModal(true)}>
+            <Plus size={15} /> 일감 등록
+          </Button>
+        }
+      />
 
       {/* ── 조회 필터 바 ── */}
       <div className="flex-shrink-0 bg-white border-b border-gray-100 px-6 py-3">
@@ -263,7 +263,7 @@ export function WorkloadPage() {
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {/* 미확인 일감 인박스 */}
         {pendingAck.length > 0 && (
-          <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
+          <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
               <div className="flex items-center gap-2.5">
                 <span className="relative flex h-2 w-2">
@@ -399,15 +399,16 @@ export function WorkloadPage() {
               ) : !filteredLogs.length ? (
                 <tr>
                   <td colSpan={10}>
-                    <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-                      <Briefcase size={32} className="mb-3 opacity-40" />
-                      <p className="text-sm">{selectedUserId ? '해당 담당자의 일감이 없습니다.' : '등록된 일감이 없습니다.'}</p>
-                      {!selectedUserId && (
-                        <button onClick={() => setShowAddModal(true)} className="mt-3 text-xs text-indigo-600 hover:text-indigo-800 font-medium">
-                          첫 번째 일감 등록하기
-                        </button>
-                      )}
-                    </div>
+                    <EmptyState
+                      icon={<Briefcase size={36} />}
+                      title={selectedUserId ? '해당 담당자의 일감이 없습니다' : '등록된 일감이 없습니다'}
+                      description={selectedUserId ? undefined : '작업한 일감을 등록해 공수를 기록하세요.'}
+                      action={!selectedUserId ? (
+                        <Button variant="primary" onClick={() => setShowAddModal(true)}>
+                          <Plus size={15} /> 일감 등록
+                        </Button>
+                      ) : undefined}
+                    />
                   </td>
                 </tr>
               ) : (
@@ -427,7 +428,7 @@ export function WorkloadPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full truncate max-w-[120px] block ${log.task ? 'text-indigo-700 bg-indigo-50' : 'text-gray-400 bg-gray-100 line-through'}`}>
+                        <span className={`text-xs font-medium truncate max-w-[120px] block ${log.task ? 'text-indigo-600' : 'text-gray-400 line-through'}`}>
                           {log.task?.title ?? log.taskTitle ?? '-'}
                         </span>
                       </td>
@@ -600,12 +601,7 @@ export function WorkloadPage() {
 
               {/* 닫기 버튼 */}
               <div className="px-6 py-4 border-t border-gray-100 flex justify-end">
-                <button
-                  onClick={() => setViewLog(null)}
-                  className="px-4 py-2 text-sm text-gray-600 font-medium rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  닫기
-                </button>
+                <Button variant="ghost" onClick={() => setViewLog(null)}>닫기</Button>
               </div>
             </div>
           </div>
@@ -687,14 +683,15 @@ export function WorkloadPage() {
               </div>
             </div>
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
-              <button onClick={() => setShowAddModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium rounded-lg hover:bg-gray-100 transition-colors">취소</button>
-              <button
+              <Button variant="ghost" onClick={() => setShowAddModal(false)}>취소</Button>
+              <Button
+                variant="primary"
                 onClick={() => createWorklog.mutate()}
-                disabled={!form.taskId || form.hours <= 0 || createWorklog.isPending}
-                className="px-4 py-2 text-sm bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-40 transition-colors"
+                disabled={!form.taskId || form.hours <= 0}
+                loading={createWorklog.isPending}
               >
                 등록
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -801,14 +798,15 @@ export function WorkloadPage() {
 
             {/* 저장 */}
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
-              <button onClick={() => setEditLog(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium rounded-lg hover:bg-gray-100 transition-colors">닫기</button>
-              <button
+              <Button variant="ghost" onClick={() => setEditLog(null)}>닫기</Button>
+              <Button
+                variant="primary"
                 onClick={() => updateWorklog.mutate({ id: editLog.id, patch: { hours: editForm.hours, description: editForm.description, startDate: editForm.startDate, endDate: editForm.endDate, userId: editForm.userId, ...(editForm.stage && { stage: editForm.stage }) } })}
-                disabled={editForm.hours <= 0 || updateWorklog.isPending}
-                className="px-4 py-2 text-sm bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-40 transition-colors"
+                disabled={editForm.hours <= 0}
+                loading={updateWorklog.isPending}
               >
                 저장
-              </button>
+              </Button>
             </div>
           </div>
         </div>

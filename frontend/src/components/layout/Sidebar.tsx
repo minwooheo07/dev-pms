@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { NavLink, useNavigate, useMatch } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -34,6 +35,16 @@ export function Sidebar() {
     queryFn: projectsApi.getAll,
   });
 
+  // 현재 프로젝트 안에 있으면 마지막 본 프로젝트로 기억해 둔다
+  useEffect(() => {
+    if (activeProjectId) localStorage.setItem('lastProjectId', activeProjectId);
+  }, [activeProjectId]);
+
+  // 권한설정이 연결될 프로젝트: 현재 → 마지막 본 (유효한 경우) → 첫 프로젝트
+  const storedLast = localStorage.getItem('lastProjectId') ?? undefined;
+  const validLast = projects?.some((p) => p.id === storedLast) ? storedLast : undefined;
+  const permissionsTargetId = activeProjectId ?? validLast ?? projects?.[0]?.id;
+
   const handleLogout = async () => {
     try {
       if (refreshToken) await authApi.logout(refreshToken);
@@ -58,7 +69,7 @@ export function Sidebar() {
             <div className="w-7 h-7 bg-indigo-500 rounded-lg flex items-center justify-center">
               <Zap size={14} className="text-white" />
             </div>
-            <span className="font-bold text-sm tracking-tight">FlowPMS</span>
+            <span className="font-bold text-sm tracking-tight">L.PMS</span>
           </div>
         )}
         {collapsed && (
@@ -138,7 +149,7 @@ export function Sidebar() {
             className={({ isActive }) =>
               cn(
                 'flex items-center gap-3 px-2 py-2 rounded-lg text-sm font-medium transition-colors',
-                isActive ? 'bg-amber-600 text-white' : 'text-amber-400 hover:text-white hover:bg-gray-800',
+                isActive ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800',
                 collapsed && 'justify-center px-0',
               )
             }
@@ -149,10 +160,10 @@ export function Sidebar() {
           </NavLink>
         )}
 
-        {/* 권한설정 (프로젝트 내에 있을 때만) */}
-        {activeProjectId && (
+        {/* 권한설정 (항상 표시, 프로젝트가 있으면 해당 프로젝트로 연결) */}
+        {permissionsTargetId ? (
           <NavLink
-            to={`/projects/${activeProjectId}/permissions`}
+            to={`/projects/${permissionsTargetId}/permissions`}
             className={({ isActive }) =>
               cn(
                 'flex items-center gap-3 px-2 py-2 rounded-lg text-sm font-medium transition-colors',
@@ -165,6 +176,21 @@ export function Sidebar() {
             <ShieldCheck size={18} className="flex-shrink-0" />
             {!collapsed && <span>권한설정</span>}
           </NavLink>
+        ) : (
+          <button
+            onClick={() => {
+              toast('먼저 프로젝트를 선택하세요.');
+              navigate('/projects');
+            }}
+            className={cn(
+              'w-full flex items-center gap-3 px-2 py-2 rounded-lg text-sm font-medium transition-colors text-gray-400 hover:text-white hover:bg-gray-800',
+              collapsed && 'justify-center px-0',
+            )}
+            title={collapsed ? '권한설정' : undefined}
+          >
+            <ShieldCheck size={18} className="flex-shrink-0" />
+            {!collapsed && <span>권한설정</span>}
+          </button>
         )}
 
         {/* 프로필 설정 */}

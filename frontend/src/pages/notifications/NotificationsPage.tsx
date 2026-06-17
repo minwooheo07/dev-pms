@@ -88,7 +88,7 @@ export function NotificationsPage() {
                 {!n.isRead && <span className="w-2 h-2 bg-indigo-500 rounded-full mt-2 flex-shrink-0" />}
                 <div className={cn('flex-1', n.isRead && 'ml-5')}>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className={cn('text-[11px] font-medium px-2 py-0.5 rounded-full', t.color)}>{t.label}</span>
+                    <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full', t.color)}>{t.label}</span>
                     <span className="text-xs text-gray-400">{formatRelativeTime(n.createdAt)}</span>
                   </div>
                   <p className="text-sm font-medium text-gray-900">{n.title}</p>

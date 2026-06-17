@@ -5,6 +5,8 @@ import toast from 'react-hot-toast';
 import { usersApi } from '../../api/users';
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../../components/ui/Avatar';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { formatDate } from '../../lib/utils';
 import type { User } from '../../types';
 
@@ -45,10 +47,7 @@ export function AdminUsersPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
-        <h1 className="text-lg font-bold text-gray-900">사용자 관리</h1>
-        <p className="text-xs text-gray-500 mt-0.5">시스템 사용자 권한 및 정보를 관리합니다</p>
-      </div>
+      <PageHeader title="사용자 관리" description="시스템 사용자 권한 및 정보를 관리합니다" />
 
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-5xl mx-auto space-y-5">
@@ -68,8 +67,8 @@ export function AdminUsersPage() {
             </div>
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Shield size={18} className="text-amber-600" />
+                <div className="w-9 h-9 bg-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Shield size={18} className="text-indigo-600" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-gray-900">{adminCount}</p>
@@ -102,8 +101,8 @@ export function AdminUsersPage() {
           </div>
 
           {/* 사용자 목록 */}
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-            <div className="grid grid-cols-12 gap-3 px-4 py-2.5 bg-gray-50 border-b border-gray-200 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="grid grid-cols-12 gap-3 px-4 py-2.5 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wider">
               <div className="col-span-4">사용자</div>
               <div className="col-span-3">소속 / 연락처</div>
               <div className="col-span-2">프로젝트</div>
@@ -118,9 +117,11 @@ export function AdminUsersPage() {
                 ))}
               </div>
             ) : filtered.length === 0 ? (
-              <div className="py-12 text-center text-sm text-gray-400">
-                검색 결과가 없습니다.
-              </div>
+              <EmptyState
+                icon={<Users size={36} />}
+                title={search ? '검색 결과가 없습니다' : '사용자가 없습니다'}
+                description={search ? '다른 검색어로 다시 시도해 보세요.' : undefined}
+              />
             ) : (
               <div className="divide-y divide-gray-50">
                 {filtered.map((u) => (
@@ -132,37 +133,37 @@ export function AdminUsersPage() {
                         <div className="flex items-center gap-1.5">
                           <p className="text-sm font-semibold text-gray-900 truncate">{u.name}</p>
                           {u.id === currentUser?.id && (
-                            <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-1 py-0.5 rounded">나</span>
+                            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1 py-0.5 rounded">나</span>
                           )}
                         </div>
-                        <p className="text-[11px] text-gray-400 truncate">{u.email}</p>
+                        <p className="text-xs text-gray-400 truncate">{u.email}</p>
                       </div>
                     </div>
 
                     {/* 소속 / 연락처 */}
                     <div className="col-span-3 min-w-0 space-y-0.5">
                       {(u.position || u.department) && (
-                        <div className="flex items-center gap-1 text-[11px] text-gray-600">
+                        <div className="flex items-center gap-1 text-xs text-gray-600">
                           {u.position && (
                             <span className="flex items-center gap-0.5">
-                              <Briefcase size={10} className="text-gray-400" /> {u.position}
+                              <Briefcase size={11} className="text-gray-400" /> {u.position}
                             </span>
                           )}
                           {u.position && u.department && <span className="text-gray-300">·</span>}
                           {u.department && (
                             <span className="flex items-center gap-0.5">
-                              <Building size={10} className="text-gray-400" /> {u.department}
+                              <Building size={11} className="text-gray-400" /> {u.department}
                             </span>
                           )}
                         </div>
                       )}
                       {u.phone && (
-                        <div className="flex items-center gap-1 text-[11px] text-gray-400">
-                          <Phone size={10} /> {u.phone}
+                        <div className="flex items-center gap-1 text-xs text-gray-400">
+                          <Phone size={11} /> {u.phone}
                         </div>
                       )}
                       {!u.position && !u.department && !u.phone && (
-                        <span className="text-[11px] text-gray-300">-</span>
+                        <span className="text-xs text-gray-300">-</span>
                       )}
                     </div>
 
@@ -173,13 +174,13 @@ export function AdminUsersPage() {
 
                     {/* 가입일 */}
                     <div className="col-span-1">
-                      <span className="text-[11px] text-gray-400">{formatDate(u.createdAt)}</span>
+                      <span className="text-xs text-gray-400">{formatDate(u.createdAt)}</span>
                     </div>
 
                     {/* 권한 토글 */}
                     <div className="col-span-2 flex justify-center">
                       {u.id === currentUser?.id ? (
-                        <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
                           u.role === 'ADMIN'
                             ? 'bg-indigo-100 text-indigo-700'
                             : 'bg-gray-100 text-gray-600'
@@ -196,7 +197,7 @@ export function AdminUsersPage() {
                           }
                           disabled={toggleRole.isPending}
                           title={u.role === 'ADMIN' ? '일반 사용자로 변경' : '관리자로 승급'}
-                          className={`flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors cursor-pointer disabled:opacity-50 ${
+                          className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border transition-colors cursor-pointer disabled:opacity-50 ${
                             u.role === 'ADMIN'
                               ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
                               : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'

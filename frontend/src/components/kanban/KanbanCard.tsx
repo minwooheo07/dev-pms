@@ -49,6 +49,7 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
       onClick={() => openTaskModal(task.id)}
       className={cn(
         'bg-white rounded-lg border border-gray-200 p-3 cursor-pointer hover:border-indigo-300 hover:shadow-sm transition-all group select-none relative',
+        'outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400',
         isDragging && 'opacity-40',
         overlay && 'shadow-xl rotate-1',
       )}

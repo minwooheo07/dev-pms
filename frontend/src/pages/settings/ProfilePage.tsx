@@ -5,6 +5,8 @@ import toast from 'react-hot-toast';
 import { usersApi } from '../../api/users';
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../../components/ui/Avatar';
+import { Button } from '../../components/ui/Button';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 const EMOJI_LIST = [
   '😀','😎','🥸','🤓','🥳','😇','🥰','🤩','😜','🤪','😏','🙃','🤔','🤠','🧐','😴','🤗','😈',
@@ -89,16 +91,13 @@ export function ProfilePage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
-        <h1 className="text-lg font-bold text-gray-900">프로필 설정</h1>
-        <p className="text-xs text-gray-500 mt-0.5">개인 정보 및 계정 설정을 관리합니다</p>
-      </div>
+      <PageHeader title="프로필 설정" description="개인 정보 및 계정 설정을 관리합니다" />
 
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-2xl mx-auto space-y-6">
 
           {/* Avatar + 이메일 */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-6">
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
             <div className="flex items-center gap-4">
               {/* 아바타 + 이모지 선택 버튼 */}
               <div className="relative flex-shrink-0" ref={pickerRef}>
@@ -148,20 +147,20 @@ export function ProfilePage() {
               <div>
                 <p className="text-base font-bold text-gray-900">{user?.name}</p>
                 <p className="text-sm text-gray-500">{user?.email}</p>
-                <span className={`mt-1 inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                <span className={`mt-1 inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${
                   user?.role === 'ADMIN'
                     ? 'bg-indigo-100 text-indigo-700'
                     : 'bg-gray-100 text-gray-600'
                 }`}>
                   {user?.role === 'ADMIN' ? '관리자' : '일반 사용자'}
                 </span>
-                <p className="text-[11px] text-gray-400 mt-1.5">아바타를 클릭해 이모지를 선택하세요</p>
+                <p className="text-xs text-gray-400 mt-1.5">아바타를 클릭해 이모지를 선택하세요</p>
               </div>
             </div>
           </div>
 
           {/* 기본 정보 */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-6">
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
               <User size={15} className="text-indigo-500" /> 기본 정보
             </h2>
@@ -219,19 +218,19 @@ export function ProfilePage() {
             </div>
 
             <div className="mt-5 flex justify-end">
-              <button
+              <Button
+                variant="primary"
                 onClick={() => updateProfile.mutate()}
-                disabled={!profile.name.trim() || updateProfile.isPending}
-                className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-40 transition-colors cursor-pointer"
+                disabled={!profile.name.trim()}
+                loading={updateProfile.isPending}
               >
-                <Save size={14} />
-                {updateProfile.isPending ? '저장 중...' : '저장'}
-              </button>
+                <Save size={14} /> 저장
+              </Button>
             </div>
           </div>
 
           {/* 비밀번호 변경 */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-6">
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
               <Lock size={15} className="text-indigo-500" /> 비밀번호 변경
             </h2>
@@ -306,20 +305,20 @@ export function ProfilePage() {
                   </button>
                 </div>
                 {pwForm.confirmPassword && pwForm.newPassword !== pwForm.confirmPassword && (
-                  <p className="text-[11px] text-red-500 mt-1">비밀번호가 일치하지 않습니다.</p>
+                  <p className="text-xs text-red-500 mt-1">비밀번호가 일치하지 않습니다.</p>
                 )}
               </div>
             </div>
 
             <div className="mt-5 flex justify-end">
-              <button
+              <Button
+                variant="primary"
                 onClick={() => changePassword.mutate()}
-                disabled={!pwValid || changePassword.isPending}
-                className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-40 transition-colors cursor-pointer"
+                disabled={!pwValid}
+                loading={changePassword.isPending}
               >
-                <Lock size={14} />
-                {changePassword.isPending ? '변경 중...' : '비밀번호 변경'}
-              </button>
+                <Lock size={14} /> 비밀번호 변경
+              </Button>
             </div>
           </div>
 

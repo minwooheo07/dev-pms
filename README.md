@@ -1,4 +1,4 @@
-# FlowPMS — 소규모 팀을 위한 프로젝트 관리 시스템
+# L.PMS — 소규모 팀을 위한 프로젝트 관리 시스템
 
 > Linear + Notion + Jira 스타일의 현대적인 SaaS PMS
 

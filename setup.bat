@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 > nul
 echo ========================================
-echo  FlowPMS Setup
+echo  L.PMS Setup
 echo ========================================
 echo.
 echo PostgreSQL must be running.

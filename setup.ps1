@@ -1,6 +1,6 @@
-# FlowPMS Setup Script
+# L.PMS Setup Script
 Write-Host "========================================"
-Write-Host "  FlowPMS - Setup"
+Write-Host "  L.PMS - Setup"
 Write-Host "========================================"
 Write-Host ""
 Write-Host "PostgreSQL must be running."

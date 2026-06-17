@@ -76,8 +76,8 @@ export function KanbanColumn({ column, projectId, canManage, currentUserId, isOw
       <div
         ref={setNodeRef}
         className={cn(
-          'flex-1 rounded-xl p-2 space-y-2 min-h-[120px] transition-colors',
-          isOver ? 'bg-indigo-50/80 ring-2 ring-indigo-200 ring-dashed' : 'bg-gray-100/60',
+          'flex-1 rounded-xl p-2 space-y-2 min-h-[120px] border-2 border-dashed transition-colors',
+          isOver ? 'bg-indigo-50/70 border-indigo-300' : 'bg-gray-100/60 border-transparent',
         )}
       >
         <SortableContext items={column.tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>

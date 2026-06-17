@@ -7,6 +7,9 @@ import { meetingsApi } from '../../api/meetings';
 import { projectsApi } from '../../api/projects';
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../../components/ui/Avatar';
+import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { PageHeader } from '../../components/ui/PageHeader';
 import { formatDate, formatRelativeTime } from '../../lib/utils';
 
 function printMeeting(m: any) {
@@ -169,6 +172,8 @@ export function MeetingsPage() {
 
   const [filterProject, setFilterProject] = useState(routeProjectId ?? '');
   const [search, setSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewingMeeting, setViewingMeeting] = useState<any | null>(null);
@@ -254,25 +259,26 @@ export function MeetingsPage() {
     setShowModal(true);
   };
 
-  const filtered = (meetings ?? []).filter((m: any) =>
-    !search || m.title.toLowerCase().includes(search.toLowerCase()) || (m.content ?? '').toLowerCase().includes(search.toLowerCase()),
-  );
+  const filtered = (meetings ?? []).filter((m: any) => {
+    if (search && !m.title.toLowerCase().includes(search.toLowerCase()) && !(m.content ?? '').toLowerCase().includes(search.toLowerCase())) return false;
+    const mDate = m.meetingDate ? m.meetingDate.slice(0, 10) : '';
+    if (dateFrom && mDate && mDate < dateFrom) return false;
+    if (dateTo && mDate && mDate > dateTo) return false;
+    return true;
+  });
 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900">회의록</h1>
-          <p className="text-xs text-gray-500 mt-0.5">회의 기록 및 결정 사항 관리</p>
-        </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors cursor-pointer"
-        >
-          <Plus size={15} /> 새 회의록
-        </button>
-      </div>
+      <PageHeader
+        title="회의록"
+        description="회의 기록 및 결정 사항 관리"
+        actions={
+          <Button variant="primary" onClick={openCreate}>
+            <Plus size={15} /> 새 회의록
+          </Button>
+        }
+      />
 
       {/* Filters */}
       <div className="flex items-center gap-3 px-6 py-3 bg-white border-b border-gray-100 flex-shrink-0">
@@ -297,6 +303,30 @@ export function MeetingsPage() {
             ))}
           </select>
         )}
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-gray-400">기간</span>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <span className="text-xs text-gray-400">~</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          {(dateFrom || dateTo) && (
+            <button
+              onClick={() => { setDateFrom(''); setDateTo(''); }}
+              className="text-xs text-gray-400 hover:text-gray-600 px-1.5 py-1 rounded hover:bg-gray-100 transition-colors"
+            >
+              초기화
+            </button>
+          )}
+        </div>
       </div>
 
       {/* List */}
@@ -306,16 +336,16 @@ export function MeetingsPage() {
             {[...Array(4)].map((_, i) => <div key={i} className="h-24 bg-gray-100 rounded-xl animate-pulse" />)}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-            <FileText size={32} className="mb-3 opacity-40" />
-            <p className="text-sm">회의록이 없습니다.</p>
-            <button
-              onClick={openCreate}
-              className="mt-3 text-xs text-indigo-600 hover:text-indigo-800 font-medium"
-            >
-              첫 번째 회의록 작성하기
-            </button>
-          </div>
+          <EmptyState
+            icon={<FileText size={36} />}
+            title={search ? '검색 결과가 없습니다' : '회의록이 없습니다'}
+            description={search ? '다른 검색어로 시도해 보세요.' : '회의 내용과 결정 사항을 기록해 보세요.'}
+            action={!search ? (
+              <Button variant="primary" onClick={openCreate}>
+                <Plus size={15} /> 새 회의록
+              </Button>
+            ) : undefined}
+          />
         ) : (
           <div className="space-y-3">
             {filtered.map((m: any) => (
@@ -332,7 +362,7 @@ export function MeetingsPage() {
                       </h3>
                       {m.project && (
                         <span
-                          className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 flex-shrink-0"
+                          className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 flex-shrink-0"
                         >
                           {m.project.name}
                         </span>
@@ -342,17 +372,17 @@ export function MeetingsPage() {
                       <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">{m.content}</p>
                     )}
                     <div className="flex items-center gap-3 mt-2 flex-wrap">
-                      <span className="flex items-center gap-1 text-[11px] text-gray-400">
+                      <span className="flex items-center gap-1 text-xs text-gray-400">
                         <Calendar size={11} /> {formatDate(m.meetingDate)}
                       </span>
                       {(m.startTime || m.endTime) && (
-                        <span className="flex items-center gap-1 text-[11px] text-gray-400">
+                        <span className="flex items-center gap-1 text-xs text-gray-400">
                           <Clock size={11} />
                           {m.startTime ?? '?'}{m.endTime ? ` ~ ${m.endTime}` : ''}
                         </span>
                       )}
                       {m.attendees && (
-                        <span className="flex items-center gap-1 text-[11px] text-gray-400">
+                        <span className="flex items-center gap-1 text-xs text-gray-400">
                           <Users size={11} /> {m.attendees}
                         </span>
                       )}
@@ -389,7 +419,7 @@ export function MeetingsPage() {
                 </div>
                 <div className="flex items-center gap-1.5 mt-2.5 pt-2 border-t border-gray-50">
                   <Avatar name={m.createdBy?.name ?? '?'} avatar={m.createdBy?.avatar} size="xs" />
-                  <span className="text-[10px] text-gray-400">{m.createdBy?.name} · {formatRelativeTime(m.createdAt)}</span>
+                  <span className="text-xs text-gray-400">{m.createdBy?.name} · {formatRelativeTime(m.createdAt)}</span>
                 </div>
               </div>
             ))}
@@ -499,19 +529,15 @@ export function MeetingsPage() {
             </div>
 
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 flex-shrink-0">
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-              >
-                취소
-              </button>
-              <button
+              <Button variant="ghost" onClick={() => setShowModal(false)}>취소</Button>
+              <Button
+                variant="primary"
                 onClick={() => editingId ? updateMeeting.mutate() : createMeeting.mutate()}
-                disabled={!form.title.trim() || createMeeting.isPending || updateMeeting.isPending}
-                className="px-4 py-2 text-sm bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-40 transition-colors cursor-pointer"
+                disabled={!form.title.trim()}
+                loading={createMeeting.isPending || updateMeeting.isPending}
               >
                 {editingId ? '수정' : '저장'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -526,7 +552,7 @@ export function MeetingsPage() {
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-base font-bold text-gray-900">{viewingMeeting.title}</h2>
                 {viewingMeeting.project && (
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600">
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600">
                     {viewingMeeting.project.name}
                   </span>
                 )}
@@ -597,7 +623,7 @@ export function MeetingsPage() {
 
             <div className="px-6 py-3 border-t border-gray-100 flex items-center gap-2 flex-shrink-0">
               <Avatar name={viewingMeeting.createdBy?.name ?? '?'} avatar={viewingMeeting.createdBy?.avatar} size="xs" />
-              <span className="text-[11px] text-gray-400">
+              <span className="text-xs text-gray-400">
                 {viewingMeeting.createdBy?.name} · {formatRelativeTime(viewingMeeting.createdAt)}
               </span>
             </div>

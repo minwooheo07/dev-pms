@@ -6,6 +6,8 @@ import toast from 'react-hot-toast';
 import { issuesApi } from '../../api/issues';
 import { projectsApi } from '../../api/projects';
 import { Avatar } from '../../components/ui/Avatar';
+import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { cn, formatRelativeTime } from '../../lib/utils';
 import type { IssueRisk, IssueStatus, Issue } from '../../types';
 
@@ -197,19 +199,17 @@ export function IssuesPage() {
           </div>
         </div>
         <div className="flex gap-2 pt-1">
-          <button
+          <Button
+            variant="primary"
             onClick={() => editingIssue ? updateIssue.mutate() : createIssue.mutate()}
-            disabled={!form.title.trim() || createIssue.isPending || updateIssue.isPending}
-            className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors"
+            disabled={!form.title.trim()}
+            loading={createIssue.isPending || updateIssue.isPending}
           >
             <Check size={14} /> {editingIssue ? '저장' : '등록'}
-          </button>
-          <button
-            onClick={cancelForm}
-            className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
-          >
+          </Button>
+          <Button variant="secondary" onClick={cancelForm}>
             <X size={14} /> 취소
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -265,12 +265,9 @@ export function IssuesPage() {
             ))}
           </div>
         </div>
-        <button
-          onClick={() => { cancelForm(); setShowForm(true); }}
-          className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
-        >
+        <Button variant="primary" onClick={() => { cancelForm(); setShowForm(true); }}>
           <Plus size={15} /> 이슈 등록
-        </button>
+        </Button>
       </div>
 
       {/* 등록/수정 폼 */}
@@ -282,10 +279,11 @@ export function IssuesPage() {
           {[...Array(4)].map((_, i) => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <AlertTriangle size={40} className="mx-auto mb-3 opacity-30" />
-          <p className="text-sm">등록된 이슈가 없습니다.</p>
-        </div>
+        <EmptyState
+          icon={<AlertTriangle size={36} />}
+          title={issues?.length ? '조건에 맞는 이슈가 없습니다' : '등록된 이슈가 없습니다'}
+          description={issues?.length ? '필터를 변경해 보세요.' : '새 이슈를 등록해 위험 요소를 추적하세요.'}
+        />
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <table className="w-full">

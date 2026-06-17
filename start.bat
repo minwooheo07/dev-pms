@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 > nul
 echo ========================================
-echo  FlowPMS Start
+echo  L.PMS Start
 echo ========================================
 echo.
 

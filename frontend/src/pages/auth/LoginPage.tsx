@@ -40,7 +40,7 @@ export function LoginPage() {
           <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
             <Zap size={20} className="text-white" />
           </div>
-          <span className="text-2xl font-bold text-white">FlowPMS</span>
+          <span className="text-2xl font-bold text-white">L.PMS</span>
         </div>
 
         <div className="bg-white rounded-2xl shadow-2xl p-8">

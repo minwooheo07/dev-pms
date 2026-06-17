@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronLeft, ChevronRight, Plus, X, Clock, MapPin,
-  Users, Calendar, Trash2, Pencil, Check,
+  Users, Calendar, Trash2, Pencil, Check, FileText,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Holidays from 'date-holidays';
@@ -11,6 +11,7 @@ import { projectsApi } from '../../api/projects';
 import { usersApi } from '../../api/users';
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../../components/ui/Avatar';
+import { Button } from '../../components/ui/Button';
 import { formatDate, cn } from '../../lib/utils';
 
 const hd = new Holidays('KR');
@@ -80,6 +81,11 @@ export function MeetingCalendarPage() {
   const [viewMeeting, setViewMeeting] = useState<any>(null);
   const [form, setForm] = useState<MeetingForm>(emptyForm());
 
+  // 회의록 등록 모달 상태
+  interface MinutesForm { title: string; content: string; meetingDate: string; startTime: string; endTime: string; attendees: string; projectId: string; }
+  const [showMinutes, setShowMinutes] = useState(false);
+  const [minutesForm, setMinutesForm] = useState<MinutesForm>({ title: '', content: '', meetingDate: '', startTime: '', endTime: '', attendees: '', projectId: '' });
+
   const { data: meetings } = useQuery({
     queryKey: ['meetings-all'],
     queryFn: () => meetingsApi.getAll(),
@@ -106,6 +112,37 @@ export function MeetingCalendarPage() {
     onSuccess: () => { invalidate(); setViewMeeting(null); toast.success('회의가 삭제되었습니다.'); },
     onError: (e: any) => toast.error(e.response?.data?.message ?? '삭제에 실패했습니다.'),
   });
+
+  const createMinutes = useMutation({
+    mutationFn: () => meetingsApi.create({
+      title: minutesForm.title,
+      content: minutesForm.content || undefined,
+      meetingDate: minutesForm.meetingDate || undefined,
+      startTime: minutesForm.startTime || undefined,
+      endTime: minutesForm.endTime || undefined,
+      attendees: minutesForm.attendees || undefined,
+      projectId: minutesForm.projectId || undefined,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['meetings'] });
+      setShowMinutes(false);
+      toast.success('회의록이 저장되었습니다.');
+    },
+    onError: () => toast.error('저장에 실패했습니다.'),
+  });
+
+  const openMinutes = (m: any) => {
+    setMinutesForm({
+      title: m.title,
+      content: m.content ?? '',
+      meetingDate: m.meetingDate ? new Date(m.meetingDate).toISOString().slice(0, 10) : '',
+      startTime: m.startTime ?? '',
+      endTime: m.endTime ?? '',
+      attendees: (m.participants ?? []).map((p: any) => p.user.name).join(', '),
+      projectId: m.project?.id ?? '',
+    });
+    setShowMinutes(true);
+  };
 
   // 캘린더 계산
   const calendarDays = useMemo(() => {
@@ -204,12 +241,9 @@ export function MeetingCalendarPage() {
               오늘
             </button>
           </div>
-          <button
-            onClick={() => openCreate()}
-            className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
-          >
+          <Button variant="primary" onClick={() => openCreate()}>
             <Plus size={15} /> 회의 추가하기
-          </button>
+          </Button>
         </div>
 
         {/* 캘린더 그리드 */}
@@ -552,19 +586,105 @@ export function MeetingCalendarPage() {
             </div>
 
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 flex-shrink-0">
-              <button
-                onClick={() => { setShowForm(false); setEditMeeting(null); }}
-                className="px-4 py-2 text-sm text-gray-600 font-medium rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                취소
-              </button>
-              <button
+              <Button variant="ghost" onClick={() => { setShowForm(false); setEditMeeting(null); }}>취소</Button>
+              <Button
+                variant="primary"
                 onClick={() => editMeeting ? updateMeeting.mutate() : createMeeting.mutate()}
-                disabled={!form.title.trim() || !form.meetingDate || createMeeting.isPending || updateMeeting.isPending}
-                className="px-4 py-2 text-sm bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-40 transition-colors"
+                disabled={!form.title.trim() || !form.meetingDate}
+                loading={createMeeting.isPending || updateMeeting.isPending}
               >
                 {editMeeting ? '저장' : '등록'}
-              </button>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 회의록 등록 모달 */}
+      {showMinutes && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowMinutes(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-br from-indigo-50 via-white to-violet-50 border-b border-gray-200 flex-shrink-0">
+              <h2 className="text-base font-bold text-gray-900">회의록 등록</h2>
+              <button onClick={() => setShowMinutes(false)} className="text-gray-400 hover:text-gray-600 p-1"><X size={18} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">제목 *</label>
+                <input
+                  autoFocus
+                  type="text"
+                  value={minutesForm.title}
+                  onChange={(e) => setMinutesForm({ ...minutesForm, title: e.target.value })}
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">회의일</label>
+                  <input
+                    type="date"
+                    value={minutesForm.meetingDate}
+                    onChange={(e) => setMinutesForm({ ...minutesForm, meetingDate: e.target.value })}
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">연관 프로젝트</label>
+                  <select
+                    value={minutesForm.projectId}
+                    onChange={(e) => setMinutesForm({ ...minutesForm, projectId: e.target.value })}
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                  >
+                    <option value="">없음</option>
+                    {projects?.map((p: any) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">시작 시간</label>
+                  <input type="time" value={minutesForm.startTime} onChange={(e) => setMinutesForm({ ...minutesForm, startTime: e.target.value })} className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">종료 시간</label>
+                  <input type="time" value={minutesForm.endTime} onChange={(e) => setMinutesForm({ ...minutesForm, endTime: e.target.value })} className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">참석자</label>
+                <input
+                  type="text"
+                  value={minutesForm.attendees}
+                  onChange={(e) => setMinutesForm({ ...minutesForm, attendees: e.target.value })}
+                  placeholder="예: 김철수, 이영희"
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">내용</label>
+                <textarea
+                  value={minutesForm.content}
+                  onChange={(e) => setMinutesForm({ ...minutesForm, content: e.target.value })}
+                  placeholder="회의 내용, 결정 사항, 액션 아이템 등을 기록하세요..."
+                  rows={8}
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+              <Button variant="ghost" onClick={() => setShowMinutes(false)}>취소</Button>
+              <Button
+                variant="primary"
+                onClick={() => createMinutes.mutate()}
+                disabled={!minutesForm.title.trim()}
+                loading={createMinutes.isPending}
+              >
+                저장
+              </Button>
             </div>
           </div>
         </div>
@@ -587,6 +707,13 @@ export function MeetingCalendarPage() {
                   )}
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
+                  <button
+                    onClick={() => openMinutes(viewMeeting)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-200"
+                    title="회의록 등록"
+                  >
+                    <FileText size={12} /> 회의록 등록
+                  </button>
                   {(isGlobalAdmin || viewMeeting.createdBy?.id === user?.id) && (
                     <>
                       <button onClick={() => openEdit(viewMeeting)} className="p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors">

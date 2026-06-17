@@ -5,6 +5,8 @@ import { Plus, Pin, Pencil, Trash2, X, Megaphone, PinOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { noticesApi } from '../../api/notices';
 import { useAuthStore } from '../../store/auth.store';
+import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { formatRelativeTime, formatDate, cn } from '../../lib/utils';
 
 interface NoticeForm {
@@ -78,12 +80,9 @@ export function NoticesPage() {
           </span>
         </div>
         {isAdmin && (
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
-          >
+          <Button variant="primary" onClick={openCreate}>
             <Plus size={15} /> 공지사항 등록
-          </button>
+          </Button>
         )}
       </div>
 
@@ -96,18 +95,16 @@ export function NoticesPage() {
             ))}
           </div>
         ) : !notices?.length ? (
-          <div className="flex flex-col items-center justify-center py-24 text-gray-400">
-            <Megaphone size={40} className="mb-3 opacity-30" />
-            <p className="text-sm font-medium">등록된 공지사항이 없습니다.</p>
-            {isAdmin && (
-              <button
-                onClick={openCreate}
-                className="mt-3 text-xs text-indigo-600 hover:text-indigo-800 font-medium"
-              >
-                첫 번째 공지사항 등록하기
-              </button>
-            )}
-          </div>
+          <EmptyState
+            icon={<Megaphone size={36} />}
+            title="등록된 공지사항이 없습니다"
+            description={isAdmin ? '팀에 공유할 공지사항을 등록해 보세요.' : undefined}
+            action={isAdmin ? (
+              <Button variant="primary" onClick={openCreate}>
+                <Plus size={15} /> 공지사항 등록
+              </Button>
+            ) : undefined}
+          />
         ) : (
           <div className="max-w-3xl mx-auto space-y-6">
             {/* 고정 공지 */}
@@ -261,7 +258,7 @@ function NoticeCard({ notice, isAdmin, onView, onEdit, onDelete }: {
             <h3 className="text-sm font-semibold text-gray-900 truncate">{notice.title}</h3>
           </div>
           <p className="text-xs text-gray-500 line-clamp-2 whitespace-pre-wrap">{notice.content}</p>
-          <p className="text-[11px] text-gray-400 mt-2">
+          <p className="text-xs text-gray-400 mt-2">
             {notice.createdBy.name} · {formatRelativeTime(notice.createdAt)}
           </p>
         </div>
@@ -342,14 +339,15 @@ function NoticeModal({ title, form, setForm, onClose, onSubmit, isPending, submi
           </label>
         </div>
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium rounded-lg hover:bg-gray-100 transition-colors">취소</button>
-          <button
+          <Button variant="ghost" onClick={onClose}>취소</Button>
+          <Button
+            variant="primary"
             onClick={onSubmit}
-            disabled={!form.title.trim() || !form.content.trim() || isPending}
-            className="px-4 py-2 text-sm bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-40 transition-colors"
+            disabled={!form.title.trim() || !form.content.trim()}
+            loading={isPending}
           >
             {submitLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

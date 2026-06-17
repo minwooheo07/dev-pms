@@ -1,7 +1,7 @@
-# FlowPMS Start Script
+# L.PMS Start Script
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-Write-Host "Starting FlowPMS..." -ForegroundColor Cyan
+Write-Host "Starting L.PMS..." -ForegroundColor Cyan
 
 # Start Backend
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root\backend'; npm run start:dev"

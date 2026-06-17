@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Search } from 'lucide-react';
+import { Bell, Search, Mail } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { notificationsApi } from '../../api/notifications';
+import { messagesApi } from '../../api/messages';
 import { searchApi } from '../../api/search';
 import { Avatar } from '../ui/Avatar';
 import { useAuthStore } from '../../store/auth.store';
@@ -18,6 +19,7 @@ export function Header() {
   const openTaskModal = useUiStore((s) => s.openTaskModal);
 
   const [notifOpen, setNotifOpen] = useState(false);
+  const [msgOpen, setMsgOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -56,6 +58,18 @@ export function Header() {
     queryKey: ['notifications', 'count'],
     queryFn: notificationsApi.getUnreadCount,
     refetchInterval: 30_000,
+  });
+
+  const { data: msgUnread } = useQuery({
+    queryKey: ['messages', 'unread'],
+    queryFn: messagesApi.unreadCount,
+    refetchInterval: 30_000,
+  });
+
+  const { data: conversations } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: messagesApi.conversations,
+    enabled: msgOpen,
   });
 
   const { data: notifications } = useQuery({
@@ -196,10 +210,74 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-2 ml-auto">
+        {/* Messages */}
+        <div className="relative">
+          <button
+            onClick={() => { setMsgOpen(!msgOpen); setNotifOpen(false); }}
+            className="relative h-8 w-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+          >
+            <Mail size={18} className={(msgUnread?.count ?? 0) > 0 ? 'mail-blink' : ''} />
+            {(msgUnread?.count ?? 0) > 0 && (
+              <span className="absolute top-1 right-1 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5">
+                {msgUnread!.count > 9 ? '9+' : msgUnread!.count}
+              </span>
+            )}
+          </button>
+
+          {msgOpen && (
+            <>
+              <div className="fixed inset-0 z-30" onClick={() => setMsgOpen(false)} />
+              <div className="absolute right-0 top-10 z-40 w-80 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                  <h3 className="font-semibold text-sm text-gray-900">쪽지</h3>
+                  <button
+                    onClick={() => { setMsgOpen(false); navigate('/messages'); }}
+                    className="text-xs text-indigo-600 hover:text-indigo-800"
+                  >
+                    전체 보기
+                  </button>
+                </div>
+                <div className="max-h-80 overflow-y-auto">
+                  {!conversations?.length ? (
+                    <p className="text-sm text-gray-400 text-center py-8">받은 쪽지가 없습니다.</p>
+                  ) : (
+                    conversations.slice(0, 8).map((c) => (
+                      <button
+                        key={c.user.id}
+                        onClick={() => { setMsgOpen(false); navigate(`/messages?to=${c.user.id}`); }}
+                        className={cn(
+                          'w-full flex items-center gap-3 px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors text-left',
+                          c.unread > 0 && 'bg-indigo-50/50',
+                        )}
+                      >
+                        <Avatar name={c.user.name} avatar={c.user.avatar} size="sm" className="flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-sm font-medium text-gray-900 truncate">{c.user.name}</span>
+                            <span className="text-[10px] text-gray-400 flex-shrink-0">{formatRelativeTime(c.lastMessage.createdAt)}</span>
+                          </div>
+                          <p className="text-xs text-gray-500 truncate mt-0.5">
+                            {c.lastMessage.senderId === user?.id && '나: '}{c.lastMessage.content}
+                          </p>
+                        </div>
+                        {c.unread > 0 && (
+                          <span className="flex-shrink-0 min-w-[18px] h-[18px] bg-indigo-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                            {c.unread > 9 ? '9+' : c.unread}
+                          </span>
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
         {/* Notifications */}
         <div className="relative">
           <button
-            onClick={() => setNotifOpen(!notifOpen)}
+            onClick={() => { setNotifOpen(!notifOpen); setMsgOpen(false); }}
             className="relative h-8 w-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
           >
             <Bell size={18} />
