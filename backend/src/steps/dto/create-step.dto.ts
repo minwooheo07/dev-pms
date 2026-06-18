@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsBoolean, MaxLength } from 'class-validator';
 
 export class CreateStepDto {
   @IsString()
@@ -12,4 +12,8 @@ export class CreateStepDto {
   @IsOptional()
   @IsString()
   color?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isDone?: boolean;
 }

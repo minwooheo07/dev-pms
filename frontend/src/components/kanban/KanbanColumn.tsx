@@ -1,7 +1,7 @@
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { KanbanCard } from './KanbanCard';
 import { useUiStore } from '../../store/ui.store';
@@ -34,6 +34,15 @@ export function KanbanColumn({ column, projectId, canManage, currentUserId, isOw
     onError: (e: any) => toast.error(e.response?.data?.message ?? '삭제에 실패했습니다.'),
   });
 
+  const toggleDone = useMutation({
+    mutationFn: () => stepsApi.update(projectId, column.id, { isDone: !column.isDone }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['kanban', projectId] });
+      toast.success(column.isDone ? '완료 컬럼 해제되었습니다.' : '완료 컬럼으로 설정되었습니다.');
+    },
+    onError: () => toast.error('변경에 실패했습니다.'),
+  });
+
   const handleDelete = () => {
     const msg = column.tasks.length
       ? `"${column.name}" 단계와 포함된 태스크 ${column.tasks.length}개가 모두 삭제됩니다. 계속하시겠습니까?`
@@ -51,6 +60,11 @@ export function KanbanColumn({ column, projectId, canManage, currentUserId, isOw
           <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full font-medium">
             {column.tasks.length}
           </span>
+          {column.isDone && (
+            <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
+              완료
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-0.5">
           <button
@@ -61,13 +75,27 @@ export function KanbanColumn({ column, projectId, canManage, currentUserId, isOw
             <Plus size={14} />
           </button>
           {canManage && (
-            <button
-              onClick={handleDelete}
-              className="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
-              title="단계 삭제 (오너/관리자)"
-            >
-              <Trash2 size={13} />
-            </button>
+            <>
+              <button
+                onClick={() => toggleDone.mutate()}
+                className={cn(
+                  'p-1 rounded transition-colors cursor-pointer opacity-0 group-hover:opacity-100',
+                  column.isDone
+                    ? 'text-emerald-500 hover:text-gray-400 hover:bg-gray-100'
+                    : 'text-gray-400 hover:text-emerald-500 hover:bg-emerald-50',
+                )}
+                title={column.isDone ? '완료 컬럼 해제' : '완료 컬럼으로 설정'}
+              >
+                <CheckCircle2 size={13} />
+              </button>
+              <button
+                onClick={handleDelete}
+                className="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
+                title="단계 삭제"
+              >
+                <Trash2 size={13} />
+              </button>
+            </>
           )}
         </div>
       </div>

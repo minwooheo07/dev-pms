@@ -106,6 +106,7 @@ model Step {
   name      String
   order     Int      @default(0)
   color     String   @default("#e2e8f0")
+  isDone    Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

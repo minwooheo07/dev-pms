@@ -10,6 +10,7 @@ import { useAuthStore } from '../../store/auth.store';
 import { useUiStore } from '../../store/ui.store';
 import { formatRelativeTime, cn } from '../../lib/utils';
 import { STATUS_CONFIG, PRIORITY_CONFIG } from '../../lib/utils';
+import { MessagePanel } from './MessagePanel';
 import type { TaskStatus, Priority } from '../../types';
 
 export function Header() {
@@ -66,11 +67,19 @@ export function Header() {
     refetchInterval: 30_000,
   });
 
-  const { data: conversations } = useQuery({
-    queryKey: ['conversations'],
-    queryFn: messagesApi.conversations,
-    enabled: msgOpen,
-  });
+  // SSE: 새 메시지 도착 시 즉시 unread count 갱신
+  useEffect(() => {
+    if (!user) return;
+    const token = localStorage.getItem('accessToken');
+    const url = `/api/messages/events${token ? `?token=${token}` : ''}`;
+    const es = new EventSource(url);
+    es.onmessage = () => {
+      qc.invalidateQueries({ queryKey: ['messages', 'unread'] });
+      qc.invalidateQueries({ queryKey: ['conversations'] });
+    };
+    es.onerror = () => es.close();
+    return () => es.close();
+  }, [user, qc]);
 
   const { data: notifications } = useQuery({
     queryKey: ['notifications'],
@@ -211,68 +220,18 @@ export function Header() {
 
       <div className="flex items-center gap-2 ml-auto">
         {/* Messages */}
-        <div className="relative">
-          <button
-            onClick={() => { setMsgOpen(!msgOpen); setNotifOpen(false); }}
-            className="relative h-8 w-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
-          >
-            <Mail size={18} className={(msgUnread?.count ?? 0) > 0 ? 'mail-blink' : ''} />
-            {(msgUnread?.count ?? 0) > 0 && (
-              <span className="absolute top-1 right-1 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5">
-                {msgUnread!.count > 9 ? '9+' : msgUnread!.count}
-              </span>
-            )}
-          </button>
-
-          {msgOpen && (
-            <>
-              <div className="fixed inset-0 z-30" onClick={() => setMsgOpen(false)} />
-              <div className="absolute right-0 top-10 z-40 w-80 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                  <h3 className="font-semibold text-sm text-gray-900">쪽지</h3>
-                  <button
-                    onClick={() => { setMsgOpen(false); navigate('/messages'); }}
-                    className="text-xs text-indigo-600 hover:text-indigo-800"
-                  >
-                    전체 보기
-                  </button>
-                </div>
-                <div className="max-h-80 overflow-y-auto">
-                  {!conversations?.length ? (
-                    <p className="text-sm text-gray-400 text-center py-8">받은 쪽지가 없습니다.</p>
-                  ) : (
-                    conversations.slice(0, 8).map((c) => (
-                      <button
-                        key={c.user.id}
-                        onClick={() => { setMsgOpen(false); navigate(`/messages?to=${c.user.id}`); }}
-                        className={cn(
-                          'w-full flex items-center gap-3 px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors text-left',
-                          c.unread > 0 && 'bg-indigo-50/50',
-                        )}
-                      >
-                        <Avatar name={c.user.name} avatar={c.user.avatar} size="sm" className="flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-sm font-medium text-gray-900 truncate">{c.user.name}</span>
-                            <span className="text-[10px] text-gray-400 flex-shrink-0">{formatRelativeTime(c.lastMessage.createdAt)}</span>
-                          </div>
-                          <p className="text-xs text-gray-500 truncate mt-0.5">
-                            {c.lastMessage.senderId === user?.id && '나: '}{c.lastMessage.content}
-                          </p>
-                        </div>
-                        {c.unread > 0 && (
-                          <span className="flex-shrink-0 min-w-[18px] h-[18px] bg-indigo-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-                            {c.unread > 9 ? '9+' : c.unread}
-                          </span>
-                        )}
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-            </>
+        <button
+          onClick={() => { setMsgOpen(!msgOpen); setNotifOpen(false); }}
+          className="relative h-8 w-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+        >
+          <Mail size={18} className={(msgUnread?.count ?? 0) > 0 ? 'mail-blink' : ''} />
+          {(msgUnread?.count ?? 0) > 0 && (
+            <span className="absolute top-1 right-1 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5">
+              {msgUnread!.count > 9 ? '9+' : msgUnread!.count}
+            </span>
           )}
-        </div>
+        </button>
+        <MessagePanel open={msgOpen} onClose={() => setMsgOpen(false)} />
 
         {/* Notifications */}
         <div className="relative">

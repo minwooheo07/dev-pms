@@ -257,7 +257,10 @@ export function DashboardPage() {
             <h2 className="font-semibold text-gray-900 text-sm flex items-center gap-1.5">
               <Clock size={15} className="text-violet-500" /> 내 이번 주 일감
             </h2>
-            <Link to="/workload" className="text-xs text-indigo-600 hover:underline">전체</Link>
+            <Link
+              to={projects?.[0]?.id ? `/projects/${projects[0].id}/workload` : '/projects'}
+              className="text-xs text-indigo-600 hover:underline"
+            >전체</Link>
           </div>
           <div className="flex items-baseline gap-1.5 mb-3">
             <span className="text-3xl font-bold text-gray-900">{weekHours}</span>

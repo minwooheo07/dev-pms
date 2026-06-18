@@ -319,12 +319,14 @@ export function MeetingCalendarPage() {
                             key={m.id}
                             onClick={(e) => { e.stopPropagation(); setViewMeeting(m); setSelectedDay(day); }}
                             className={cn(
-                              'w-full text-left text-[10px] font-medium px-1.5 py-0.5 rounded border truncate leading-tight',
+                              'w-full text-left px-1.5 py-1 rounded border leading-tight',
                               colorForProject(m.project?.id),
                             )}
                           >
-                            {m.startTime && <span className="opacity-60 mr-0.5">{m.startTime}</span>}
-                            {m.title}
+                            {m.startTime && (
+                              <span className="block text-[9px] opacity-70 font-medium">{m.startTime}</span>
+                            )}
+                            <span className="block text-[10px] font-bold truncate">{m.title}</span>
                           </button>
                         ))}
                         {dayMeetings.length > 3 && (

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Users, Activity, Calendar, Pencil, Megaphone, Pin, ChevronLeft, ChevronRight, UserPlus, X, Crown, ShieldCheck, Eye, Search, ArrowRight, Trash2 } from 'lucide-react';
+import { Users, Activity, Calendar, Pencil, Megaphone, Pin, ChevronLeft, ChevronRight, ChevronDown, UserPlus, X, Crown, ShieldCheck, Eye, Search, ArrowRight, Trash2, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { NavLink } from 'react-router-dom';
 import { projectsApi } from '../../api/projects';
@@ -14,6 +14,7 @@ import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
+import { MessagePanel } from '../../components/layout/MessagePanel';
 import { PROJECT_STATUS_CONFIG, formatDate, formatRelativeTime, cn } from '../../lib/utils';
 import type { ActivityLog, ProjectRole, ProjectStatus } from '../../types';
 
@@ -72,6 +73,16 @@ export function ProjectDetailPage() {
 
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === 'ADMIN';
+
+  // 메시지 패널
+  const [msgPanelOpen, setMsgPanelOpen] = useState(false);
+  const [expandedNoticeId, setExpandedNoticeId] = useState<string | null>(null);
+  const [msgTargetId, setMsgTargetId] = useState<string | null>(null);
+
+  const openChat = (userId: string) => {
+    setMsgTargetId(userId);
+    setMsgPanelOpen(true);
+  };
 
   // 멤버 관리
   const [memberOpen, setMemberOpen] = useState(false);
@@ -250,50 +261,227 @@ export function ProjectDetailPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Status breakdown */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm lg:col-span-2">
-          <h3 className="font-semibold text-sm text-gray-900 mb-4">상태별 태스크</h3>
-          {stats?.byStatus?.length ? (
-            <div className="space-y-2.5">
-              {stats.byStatus.map((s) => {
-                const pct = stats.total ? Math.round((s._count / stats.total) * 100) : 0;
-                const statusColors: Record<string, string> = {
-                  TODO: 'bg-gray-300',
-                  IN_PROGRESS: 'bg-blue-500',
-                  IN_REVIEW: 'bg-yellow-500',
-                  DONE: 'bg-emerald-500',
-                  CANCELLED: 'bg-red-400',
-                };
-                const statusLabels: Record<string, string> = {
-                  TODO: '할 일', IN_PROGRESS: '진행 중', IN_REVIEW: '검토 중',
-                  DONE: '완료', CANCELLED: '취소',
-                };
+      {/* 메인 3열 레이아웃: 왼쪽 2열(콘텐츠) + 오른쪽 1열(팀 멤버) */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+        {/* ── 왼쪽 2열 영역 ── */}
+        <div className="lg:col-span-3 flex flex-col gap-6">
+
+          {/* 상태별 태스크 */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+            <h3 className="font-semibold text-sm text-gray-900 mb-4">상태별 태스크</h3>
+            {stats?.byStatus?.length ? (
+              <div className="space-y-2.5">
+                {stats.byStatus.map((s) => {
+                  const pct = stats.total ? Math.round((s._count / stats.total) * 100) : 0;
+                  const statusColors: Record<string, string> = {
+                    TODO: 'bg-gray-300', IN_PROGRESS: 'bg-blue-500',
+                    IN_REVIEW: 'bg-yellow-500', DONE: 'bg-emerald-500', CANCELLED: 'bg-red-400',
+                  };
+                  const statusLabels: Record<string, string> = {
+                    TODO: '할 일', IN_PROGRESS: '진행 중', IN_REVIEW: '검토 중',
+                    DONE: '완료', CANCELLED: '취소',
+                  };
+                  return (
+                    <div key={s.status}>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-gray-600">{statusLabels[s.status]}</span>
+                        <span className="text-gray-500">{s._count} ({pct}%)</span>
+                      </div>
+                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div className={cn('h-full rounded-full', statusColors[s.status])} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">태스크가 없습니다.</p>
+            )}
+          </div>
+
+          {/* 공지사항 */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 bg-gradient-to-r from-indigo-50/60 to-transparent">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-md bg-indigo-100 flex items-center justify-center">
+                  <Megaphone size={13} className="text-indigo-600" />
+                </div>
+                <span className="text-sm font-bold text-gray-900">공지사항</span>
+                {notices && notices.length > 0 && (
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold">
+                    {notices.length}
+                  </span>
+                )}
+              </div>
+              <NavLink to="notices" relative="route" className="flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-600 font-medium transition-colors group">
+                모두 보기 <ArrowRight size={11} className="group-hover:translate-x-0.5 transition-transform" />
+              </NavLink>
+            </div>
+            {!notices?.length ? (
+              <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center mb-2.5">
+                  <Megaphone size={18} className="opacity-40" />
+                </div>
+                <p className="text-xs font-medium">등록된 공지사항이 없습니다</p>
+                {canManageProject && (
+                  <NavLink to="notices" relative="route" className="mt-2 text-xs text-indigo-500 hover:text-indigo-700 font-medium">
+                    공지사항 작성하기
+                  </NavLink>
+                )}
+              </div>
+            ) : (
+              <div>
+                {notices.filter((n) => n.isPinned).slice(0, 1).map((n) => {
+                  const isOpen = expandedNoticeId === n.id;
+                  return (
+                    <div key={n.id} className="border-b border-gray-50 bg-indigo-50/40">
+                      <button
+                        onClick={() => setExpandedNoticeId(isOpen ? null : n.id)}
+                        className="w-full flex items-start gap-3 px-5 py-3 hover:bg-indigo-50/70 transition-colors group text-left"
+                      >
+                        <Pin size={12} className="text-indigo-500 mt-1 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-100 px-1.5 py-0.5 rounded-full flex-shrink-0">고정</span>
+                            <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-indigo-700 transition-colors">{n.title}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
+                          <span className="text-[10px] text-gray-300 whitespace-nowrap">{formatRelativeTime(n.createdAt)}</span>
+                          <ChevronDown size={13} className={cn('text-gray-400 transition-transform duration-200', isOpen && 'rotate-180')} />
+                        </div>
+                      </button>
+                      {isOpen && n.content && (
+                        <div className="px-5 pb-3 pt-0">
+                          <p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed bg-indigo-50 rounded-lg px-3 py-2.5">{n.content}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {notices.filter((n) => !n.isPinned).slice(0, 3).map((n, i, arr) => {
+                  const isOpen = expandedNoticeId === n.id;
+                  return (
+                    <div key={n.id} className={cn(i < arr.length - 1 && 'border-b border-gray-50')}>
+                      <button
+                        onClick={() => setExpandedNoticeId(isOpen ? null : n.id)}
+                        className="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors group text-left"
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-gray-300 flex-shrink-0" />
+                        <p className="flex-1 text-sm text-gray-700 truncate font-medium group-hover:text-indigo-600 transition-colors">{n.title}</p>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-[10px] text-gray-400 hidden sm:block">{n.createdBy.name}</span>
+                          <span className="text-[10px] text-gray-300 whitespace-nowrap">{formatRelativeTime(n.createdAt)}</span>
+                          <ChevronDown size={13} className={cn('text-gray-400 transition-transform duration-200', isOpen && 'rotate-180')} />
+                        </div>
+                      </button>
+                      {isOpen && n.content && (
+                        <div className="px-5 pb-3 pt-0">
+                          <p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed bg-gray-50 rounded-lg px-3 py-2.5">{n.content}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {notices.length > 4 && (
+                  <NavLink to="notices" relative="route"
+                    className="flex items-center justify-center gap-1 py-2.5 text-xs text-gray-400 hover:text-indigo-600 hover:bg-gray-50 transition-colors border-t border-gray-50">
+                    <span>+{notices.length - 4}개 더</span><ArrowRight size={11} />
+                  </NavLink>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 캘린더 */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Calendar size={15} className="text-indigo-500" />
+                <h3 className="font-semibold text-sm text-gray-900">{calMonth.getFullYear()}년 {calMonth.getMonth() + 1}월</h3>
+              </div>
+              <div className="flex gap-1">
+                <button onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1))} className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"><ChevronLeft size={15} /></button>
+                <button onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1))} className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"><ChevronRight size={15} /></button>
+              </div>
+            </div>
+            <div className="grid grid-cols-7 mb-1">
+              {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => (
+                <div key={d} className={cn('text-center text-[11px] font-medium py-1', i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-gray-400')}>{d}</div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-px bg-gray-100 rounded-lg overflow-hidden">
+              {calendarDays.map((day, idx) => {
+                const isToday = day !== null &&
+                  new Date().getFullYear() === calMonth.getFullYear() &&
+                  new Date().getMonth() === calMonth.getMonth() &&
+                  new Date().getDate() === day;
+                const dayTasks = day !== null ? (tasksByDate[day.toString()] ?? []) : [];
+                const col = idx % 7;
                 return (
-                  <div key={s.status}>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-gray-600">{statusLabels[s.status]}</span>
-                      <span className="text-gray-500">{s._count} ({pct}%)</span>
-                    </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className={cn('h-full rounded-full', statusColors[s.status])}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
+                  <div key={idx} className={cn('bg-white min-h-[52px] p-1', !day && 'bg-gray-50')}>
+                    {day && (
+                      <>
+                        <span className={cn('inline-flex w-5 h-5 items-center justify-center text-[11px] font-medium rounded-full mb-0.5',
+                          isToday ? 'bg-indigo-600 text-white' : col === 0 ? 'text-red-400' : col === 6 ? 'text-blue-400' : 'text-gray-600')}>
+                          {day}
+                        </span>
+                        <div className="space-y-0.5">
+                          {dayTasks.slice(0, 2).map((t, ti) => (
+                            <div key={ti} className="flex items-center gap-0.5">
+                              <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', PRIORITY_DOT[t.priority])} />
+                              <span className="text-[9px] text-gray-600 truncate leading-tight">{t.title}</span>
+                            </div>
+                          ))}
+                          {dayTasks.length > 2 && <span className="text-[9px] text-gray-400">+{dayTasks.length - 2}개</span>}
+                        </div>
+                      </>
+                    )}
                   </div>
                 );
               })}
             </div>
-          ) : (
-            <p className="text-sm text-gray-400">태스크가 없습니다.</p>
+            <div className="flex items-center gap-3 mt-3 flex-wrap">
+              {Object.entries(PRIORITY_DOT).map(([k, cls]) => (
+                <div key={k} className="flex items-center gap-1">
+                  <span className={cn('w-2 h-2 rounded-full', cls)} />
+                  <span className="text-[10px] text-gray-500">{{ URGENT: '긴급', HIGH: '높음', MEDIUM: '보통', LOW: '낮음' }[k]}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Activity Feed */}
+          {activity && activity.length > 0 && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+              <h3 className="font-semibold text-sm text-gray-900 mb-4 flex items-center gap-2">
+                <Activity size={16} /> 최근 활동
+              </h3>
+              <div className="space-y-3">
+                {(activity as ActivityLog[]).map((log) => (
+                  <div key={log.id} className="flex items-start gap-3">
+                    <Avatar name={log.user.name} avatar={log.user.avatar} size="xs" className="mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-600">
+                        <span className="font-medium text-gray-900">{log.user.name}</span>
+                        {' '}이(가) <span className="font-medium">{log.entityName}</span>을(를) {ACTION_LABELS[log.action] ?? log.action}
+                      </p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">{formatRelativeTime(log.createdAt)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
 
-        {/* Members */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
+        {/* ── 오른쪽 1열: 팀 멤버 (전체 높이) ── */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col">
+          {/* 멤버 헤더 */}
+          <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100 flex-shrink-0">
             <div className="flex items-center gap-2">
+              <Users size={14} className="text-indigo-500" />
               <h3 className="font-semibold text-sm text-gray-900">팀 멤버</h3>
               <span className="text-[11px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{project.members.length}명</span>
             </div>
@@ -302,257 +490,67 @@ export function ProjectDetailPage() {
                 onClick={() => setMemberOpen(true)}
                 className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-2 py-1 rounded-lg transition-colors font-medium"
               >
-                <UserPlus size={13} /> 멤버 관리
+                <UserPlus size={13} /> 관리
               </button>
             )}
           </div>
-          <div className="space-y-2">
-            {project.members.map((m) => {
-              const roleIcon =
-                m.role === 'OWNER' ? <Crown size={11} className="text-amber-500" /> :
-                m.role === 'ADMIN' ? <ShieldCheck size={11} className="text-indigo-500" /> :
-                m.role === 'VIEWER' ? <Eye size={11} className="text-gray-400" /> : null;
-              const roleLabel: Record<string, string> = { OWNER: '소유자', ADMIN: '관리자', MEMBER: '멤버', VIEWER: '뷰어' };
-              return (
-                <div key={m.id} className="group flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-gray-50 transition-colors">
-                  <Avatar name={m.user.name} avatar={m.user.avatar} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{m.user.name}</p>
-                    <p className="text-[11px] text-gray-400 truncate">{m.user.email}</p>
-                  </div>
-                  <div className="flex items-center gap-1 text-[11px] text-gray-500">
-                    {roleIcon}
-                    <span>{roleLabel[m.role] ?? m.role}</span>
-                  </div>
-                  {canManageMembers && m.role !== 'OWNER' && m.user.id !== user?.id && (
-                    <button
-                      onClick={() => removeMember.mutate(m.user.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded transition-all"
-                      title="멤버 제거"
+
+          {/* 멤버 목록 */}
+          <div className="flex-1 overflow-y-auto p-3">
+            {project.members.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-8">등록된 멤버가 없습니다.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {project.members.map((m) => {
+                  const roleIcon =
+                    m.role === 'OWNER' ? <Crown size={10} className="text-amber-500" /> :
+                    m.role === 'ADMIN' ? <ShieldCheck size={10} className="text-indigo-500" /> :
+                    m.role === 'VIEWER' ? <Eye size={10} className="text-gray-400" /> : null;
+                  const roleLabel: Record<string, string> = { OWNER: '소유자', ADMIN: '관리자', MEMBER: '멤버', VIEWER: '뷰어' };
+                  const isSelf = m.user.id === user?.id;
+                  return (
+                    <div
+                      key={m.id}
+                      className="group flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors"
                     >
-                      <X size={12} />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-            {project.members.length === 0 && (
-              <p className="text-sm text-gray-400 text-center py-4">등록된 멤버가 없습니다.</p>
+                      <Avatar name={m.user.name} avatar={m.user.avatar} size="sm" className="flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <p className={cn('text-xs font-semibold truncate', isSelf ? 'text-indigo-600' : 'text-gray-900')}>{m.user.name}</p>
+                          <span className="flex items-center gap-0.5 text-[10px] text-gray-400">
+                            {roleIcon}{roleLabel[m.role] ?? m.role}
+                          </span>
+                        </div>
+                        {m.user.position && (
+                          <p className="text-[10px] text-gray-300 mt-0.5">{m.user.position}</p>
+                        )}
+                        <p className="text-[10px] text-gray-400 truncate mt-0.5">{m.user.email}</p>
+                      </div>
+                      {/* 채팅 버튼 — 본인 제외 */}
+                      {!isSelf && (
+                        <button
+                          onClick={() => openChat(m.user.id)}
+                          className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[10px] font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-md transition-all flex-shrink-0"
+                          title="멘션 보내기"
+                        >
+                          <MessageSquare size={11} /> 멘션
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* 공지사항 + 캘린더 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-
-        {/* 공지사항 — Confluence 스타일 */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          {/* 헤더 */}
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 bg-gradient-to-r from-indigo-50/60 to-transparent">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md bg-indigo-100 flex items-center justify-center">
-                <Megaphone size={13} className="text-indigo-600" />
-              </div>
-              <span className="text-sm font-bold text-gray-900">공지사항</span>
-              {notices && notices.length > 0 && (
-                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold">
-                  {notices.length}
-                </span>
-              )}
-            </div>
-            <NavLink
-              to="notices"
-              relative="route"
-              className="flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-600 font-medium transition-colors group"
-            >
-              모두 보기 <ArrowRight size={11} className="group-hover:translate-x-0.5 transition-transform" />
-            </NavLink>
-          </div>
-
-          {!notices?.length ? (
-            <div className="flex flex-col items-center justify-center py-10 text-gray-400">
-              <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center mb-2.5">
-                <Megaphone size={18} className="opacity-40" />
-              </div>
-              <p className="text-xs font-medium">등록된 공지사항이 없습니다</p>
-              {canManageProject && (
-                <NavLink
-                  to="notices"
-                  relative="route"
-                  className="mt-2 text-xs text-indigo-500 hover:text-indigo-700 font-medium"
-                >
-                  공지사항 작성하기
-                </NavLink>
-              )}
-            </div>
-          ) : (
-            <div>
-              {/* 고정 공지 */}
-              {notices.filter((n) => n.isPinned).slice(0, 1).map((n) => (
-                <NavLink
-                  key={n.id}
-                  to="notices"
-                  relative="route"
-                  className="flex items-start gap-3 px-5 py-3 border-b border-gray-50 bg-indigo-50/40 hover:bg-indigo-50/70 transition-colors group"
-                >
-                  <div className="flex-shrink-0 mt-0.5">
-                    <Pin size={12} className="text-indigo-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-100 px-1.5 py-0.5 rounded-full">고정</span>
-                      <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-indigo-700 transition-colors">{n.title}</p>
-                    </div>
-                    <p className="text-[11px] text-gray-500 truncate">{n.content}</p>
-                  </div>
-                  <span className="text-[10px] text-gray-300 flex-shrink-0 mt-0.5 whitespace-nowrap">{formatRelativeTime(n.createdAt)}</span>
-                </NavLink>
-              ))}
-
-              {/* 일반 공지 목록 */}
-              {notices.filter((n) => !n.isPinned).slice(0, 3).map((n, i, arr) => (
-                <NavLink
-                  key={n.id}
-                  to="notices"
-                  relative="route"
-                  className={cn(
-                    'flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors group',
-                    i < arr.length - 1 && 'border-b border-gray-50',
-                  )}
-                >
-                  <div className="w-1.5 h-1.5 rounded-full bg-gray-300 flex-shrink-0" />
-                  <p className="flex-1 text-sm text-gray-700 truncate font-medium group-hover:text-indigo-600 transition-colors">{n.title}</p>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-[10px] text-gray-400 hidden sm:block">{n.createdBy.name}</span>
-                    <span className="text-[10px] text-gray-300 whitespace-nowrap">{formatRelativeTime(n.createdAt)}</span>
-                  </div>
-                </NavLink>
-              ))}
-
-              {/* 더보기 */}
-              {notices.length > 4 && (
-                <NavLink
-                  to="notices"
-                  relative="route"
-                  className="flex items-center justify-center gap-1 py-2.5 text-xs text-gray-400 hover:text-indigo-600 hover:bg-gray-50 transition-colors border-t border-gray-50"
-                >
-                  <span>+{notices.length - 4}개 더</span>
-                  <ArrowRight size={11} />
-                </NavLink>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* 캘린더 */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Calendar size={15} className="text-indigo-500" />
-              <h3 className="font-semibold text-sm text-gray-900">
-                {calMonth.getFullYear()}년 {calMonth.getMonth() + 1}월
-              </h3>
-            </div>
-            <div className="flex gap-1">
-              <button
-                onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1))}
-                className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                <ChevronLeft size={15} />
-              </button>
-              <button
-                onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1))}
-                className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                <ChevronRight size={15} />
-              </button>
-            </div>
-          </div>
-          {/* 요일 헤더 */}
-          <div className="grid grid-cols-7 mb-1">
-            {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => (
-              <div key={d} className={cn('text-center text-[11px] font-medium py-1', i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-gray-400')}>
-                {d}
-              </div>
-            ))}
-          </div>
-          {/* 날짜 그리드 */}
-          <div className="grid grid-cols-7 gap-px bg-gray-100 rounded-lg overflow-hidden">
-            {calendarDays.map((day, idx) => {
-              const isToday = day !== null &&
-                new Date().getFullYear() === calMonth.getFullYear() &&
-                new Date().getMonth() === calMonth.getMonth() &&
-                new Date().getDate() === day;
-              const dayTasks = day !== null ? (tasksByDate[day.toString()] ?? []) : [];
-              const col = idx % 7;
-              return (
-                <div
-                  key={idx}
-                  className={cn(
-                    'bg-white min-h-[52px] p-1',
-                    !day && 'bg-gray-50',
-                  )}
-                >
-                  {day && (
-                    <>
-                      <span className={cn(
-                        'inline-flex w-5 h-5 items-center justify-center text-[11px] font-medium rounded-full mb-0.5',
-                        isToday ? 'bg-indigo-600 text-white' : col === 0 ? 'text-red-400' : col === 6 ? 'text-blue-400' : 'text-gray-600',
-                      )}>
-                        {day}
-                      </span>
-                      <div className="space-y-0.5">
-                        {dayTasks.slice(0, 2).map((t, ti) => (
-                          <div key={ti} className="flex items-center gap-0.5">
-                            <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', PRIORITY_DOT[t.priority])} />
-                            <span className="text-[9px] text-gray-600 truncate leading-tight">{t.title}</span>
-                          </div>
-                        ))}
-                        {dayTasks.length > 2 && (
-                          <span className="text-[9px] text-gray-400">+{dayTasks.length - 2}개</span>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          {/* 범례 */}
-          <div className="flex items-center gap-3 mt-3 flex-wrap">
-            {Object.entries(PRIORITY_DOT).map(([k, cls]) => (
-              <div key={k} className="flex items-center gap-1">
-                <span className={cn('w-2 h-2 rounded-full', cls)} />
-                <span className="text-[10px] text-gray-500">{{ URGENT: '긴급', HIGH: '높음', MEDIUM: '보통', LOW: '낮음' }[k]}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Activity Feed */}
-      {activity && activity.length > 0 && (
-        <div className="mt-6 bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-          <h3 className="font-semibold text-sm text-gray-900 mb-4 flex items-center gap-2">
-            <Activity size={16} /> 최근 활동
-          </h3>
-          <div className="space-y-3">
-            {(activity as ActivityLog[]).map((log) => (
-              <div key={log.id} className="flex items-start gap-3">
-                <Avatar name={log.user.name} avatar={log.user.avatar} size="xs" className="mt-0.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-gray-600">
-                    <span className="font-medium text-gray-900">{log.user.name}</span>
-                    {' '}이(가) <span className="font-medium">{log.entityName}</span>을(를) {ACTION_LABELS[log.action] ?? log.action}
-                  </p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">{formatRelativeTime(log.createdAt)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* 멘션 패널 */}
+      <MessagePanel
+        open={msgPanelOpen}
+        onClose={() => { setMsgPanelOpen(false); setMsgTargetId(null); }}
+        initialUserId={msgTargetId}
+      />
 
       {/* Member Management Modal */}
       {memberOpen && (

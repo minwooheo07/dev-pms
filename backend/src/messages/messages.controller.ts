@@ -1,14 +1,24 @@
 import {
-  Controller, Get, Post, Body, Param, Req, UseGuards,
+  Controller, Get, Post, Body, Param, Req, UseGuards, Sse, MessageEvent,
 } from '@nestjs/common';
+import { Observable } from 'rxjs';
 import { MessagesService } from './messages.service';
+import { MessagesSseService } from './messages-sse.service';
 import { SendMessageDto } from './dto/message.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @UseGuards(JwtAuthGuard)
 @Controller('messages')
 export class MessagesController {
-  constructor(private messagesService: MessagesService) {}
+  constructor(
+    private messagesService: MessagesService,
+    private sseService: MessagesSseService,
+  ) {}
+
+  @Sse('events')
+  events(@Req() req: any): Observable<MessageEvent> {
+    return this.sseService.stream(req.user.id) as Observable<MessageEvent>;
+  }
 
   @Get('conversations')
   conversations(@Req() req: any) {

@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Bell, Check, CheckCheck } from 'lucide-react';
 import { notificationsApi } from '../../api/notifications';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { MessagePanel } from '../../components/layout/MessagePanel';
 import { formatRelativeTime, cn } from '../../lib/utils';
 import type { Notification, NotificationType } from '../../types';
 
@@ -19,6 +21,8 @@ const TYPE_LABEL: Record<NotificationType, { label: string; color: string }> = {
 export function NotificationsPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const [msgPanelOpen, setMsgPanelOpen] = useState(false);
+  const [msgTargetId, setMsgTargetId] = useState<string | undefined>();
 
   const { data: notifications, isLoading } = useQuery({
     queryKey: ['notifications'],
@@ -78,7 +82,15 @@ export function NotificationsPage() {
                 key={n.id}
                 onClick={() => {
                   if (!n.isRead) markRead.mutate(n.id);
-                  if (n.link) navigate(n.link);
+                  if (!n.link) return;
+                  const url = new URL(n.link, window.location.origin);
+                  if (url.pathname === '/messages') {
+                    const to = url.searchParams.get('to');
+                    setMsgTargetId(to ?? undefined);
+                    setMsgPanelOpen(true);
+                  } else {
+                    navigate(n.link);
+                  }
                 }}
                 className={cn(
                   'flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors',
@@ -108,6 +120,11 @@ export function NotificationsPage() {
           })}
         </div>
       )}
+      <MessagePanel
+        open={msgPanelOpen}
+        onClose={() => setMsgPanelOpen(false)}
+        initialUserId={msgTargetId}
+      />
     </div>
   );
 }

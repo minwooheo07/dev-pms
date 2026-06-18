@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { MessagesSseService } from './messages-sse.service';
 import { SendMessageDto } from './dto/message.dto';
 
 const USER_MINI = { select: { id: true, name: true, avatar: true } };
@@ -20,6 +21,7 @@ export class MessagesService {
   constructor(
     private prisma: PrismaService,
     private notifications: NotificationsService,
+    private sseService: MessagesSseService,
   ) {}
 
   // 상대별 대화 목록 (최근 메시지 + 안읽음 수)
@@ -90,11 +92,17 @@ export class MessagesService {
       select: { name: true },
     });
 
+    this.sseService.emit({
+      recipientId: dto.recipientId,
+      senderId,
+      senderName: sender?.name ?? '누군가',
+    });
+
     await this.notifications.create({
       userId: dto.recipientId,
       type: 'MENTION',
-      title: '새 쪽지',
-      message: `${sender?.name ?? '누군가'}님이 쪽지를 보냈습니다.`,
+      title: '새 멘션',
+      message: `${sender?.name ?? '누군가'}님이 멘션을 보냈습니다.`,
       link: `/messages?to=${senderId}`,
     });
 

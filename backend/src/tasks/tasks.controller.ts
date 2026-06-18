@@ -1,8 +1,10 @@
 import {
   Controller, Get, Post, Patch, Delete,
-  Body, Param, Query, Req, UseGuards,
+  Body, Param, Query, Req, UseGuards, Sse, MessageEvent,
 } from '@nestjs/common';
+import { Observable } from 'rxjs';
 import { TasksService } from './tasks.service';
+import { TasksSseService } from './tasks-sse.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -10,7 +12,15 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 @UseGuards(JwtAuthGuard)
 @Controller('projects/:projectId/tasks')
 export class TasksController {
-  constructor(private tasksService: TasksService) {}
+  constructor(
+    private tasksService: TasksService,
+    private sseService: TasksSseService,
+  ) {}
+
+  @Sse('events')
+  events(@Param('projectId') projectId: string, @Req() req: any): Observable<MessageEvent> {
+    return this.sseService.stream(projectId, req.user.id) as Observable<MessageEvent>;
+  }
 
   @Get()
   findAll(
@@ -36,34 +46,48 @@ export class TasksController {
   }
 
   @Post()
-  create(
+  async create(
     @Param('projectId') projectId: string,
     @Req() req: any,
     @Body() dto: CreateTaskDto,
   ) {
-    return this.tasksService.create(projectId, req.user.id, dto);
+    const result = await this.tasksService.create(projectId, req.user.id, dto);
+    this.sseService.emit({ projectId, type: 'create', actorId: req.user.id });
+    return result;
   }
 
   @Patch(':taskId')
-  update(
+  async update(
     @Param('taskId') taskId: string,
+    @Param('projectId') projectId: string,
     @Req() req: any,
     @Body() dto: UpdateTaskDto,
   ) {
-    return this.tasksService.update(taskId, req.user.id, req.user.role, dto);
+    const result = await this.tasksService.update(taskId, req.user.id, req.user.role, dto);
+    this.sseService.emit({ projectId, type: 'update', actorId: req.user.id });
+    return result;
   }
 
   @Patch(':taskId/move')
-  moveTask(
+  async moveTask(
     @Param('taskId') taskId: string,
+    @Param('projectId') projectId: string,
     @Req() req: any,
     @Body() body: { stepId: string | null; order: number },
   ) {
-    return this.tasksService.moveTask(taskId, req.user.id, body.stepId, body.order);
+    const result = await this.tasksService.moveTask(taskId, req.user.id, body.stepId, body.order);
+    this.sseService.emit({ projectId, type: 'move', actorId: req.user.id });
+    return result;
   }
 
   @Delete(':taskId')
-  remove(@Param('taskId') taskId: string, @Req() req: any) {
-    return this.tasksService.remove(taskId, req.user.id, req.user.role);
+  async remove(
+    @Param('taskId') taskId: string,
+    @Param('projectId') projectId: string,
+    @Req() req: any,
+  ) {
+    const result = await this.tasksService.remove(taskId, req.user.id, req.user.role);
+    this.sseService.emit({ projectId, type: 'delete', actorId: req.user.id });
+    return result;
   }
 }

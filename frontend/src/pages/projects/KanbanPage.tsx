@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -45,6 +45,20 @@ export function KanbanPage() {
     queryFn: () => tasksApi.getKanban(projectId!),
     enabled: !!projectId,
   });
+
+  // SSE: 다른 사람이 태스크 변경 시 실시간 갱신
+  useEffect(() => {
+    if (!projectId || !currentUser) return;
+    const token = localStorage.getItem('accessToken');
+    const url = `/api/projects/${projectId}/tasks/events${token ? `?token=${token}` : ''}`;
+    const es = new EventSource(url);
+    es.onmessage = () => {
+      qc.invalidateQueries({ queryKey: ['kanban', projectId] });
+      qc.invalidateQueries({ queryKey: ['project-stats', projectId] });
+    };
+    es.onerror = () => es.close();
+    return () => es.close();
+  }, [projectId, currentUser, qc]);
 
   const moveTask = useMutation({
     mutationFn: ({ taskId, stepId, order }: { taskId: string; stepId: string | null; order: number }) =>

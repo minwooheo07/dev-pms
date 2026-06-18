@@ -30,15 +30,33 @@ export function MessagesPage() {
   const { data: conversations } = useQuery({
     queryKey: ['conversations'],
     queryFn: messagesApi.conversations,
-    refetchInterval: 15_000,
+    refetchInterval: 30_000,
   });
 
   const { data: thread } = useQuery({
     queryKey: ['thread', activeUserId],
     queryFn: () => messagesApi.thread(activeUserId!),
     enabled: !!activeUserId,
-    refetchInterval: activeUserId ? 8_000 : false,
+    refetchInterval: false,
   });
+
+  // SSE: 새 메시지 도착 시 실시간 갱신
+  useEffect(() => {
+    if (!me) return;
+    const token = localStorage.getItem('accessToken');
+    const url = `/api/messages/events${token ? `?token=${token}` : ''}`;
+    const es = new EventSource(url);
+    es.onmessage = (e) => {
+      const data = JSON.parse(e.data ?? '{}');
+      qc.invalidateQueries({ queryKey: ['conversations'] });
+      qc.invalidateQueries({ queryKey: ['messages', 'unread'] });
+      if (activeUserId && data.senderId === activeUserId) {
+        qc.invalidateQueries({ queryKey: ['thread', activeUserId] });
+      }
+    };
+    es.onerror = () => es.close();
+    return () => es.close();
+  }, [me, qc, activeUserId]);
 
   const { data: allUsers } = useQuery({
     queryKey: ['users'],
@@ -85,19 +103,19 @@ export function MessagesPage() {
       {/* 좌: 대화 목록 */}
       <div className="w-72 flex-shrink-0 border-r border-gray-200 bg-white flex flex-col">
         <div className="flex items-center justify-between px-4 h-14 border-b border-gray-200 flex-shrink-0">
-          <h1 className="text-base font-bold text-gray-900">쪽지</h1>
+          <h1 className="text-base font-bold text-gray-900">멘션</h1>
           <button
             onClick={() => { setShowPicker(true); setPickerSearch(''); }}
             className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-lg transition-colors"
           >
-            <Plus size={13} /> 새 쪽지
+            <Plus size={13} /> 새 멘션
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto">
           {!conversations?.length ? (
             <div className="p-4 text-center text-xs text-gray-400 mt-8">
-              아직 대화가 없습니다.<br />"새 쪽지"로 시작하세요.
+              아직 대화가 없습니다.<br />"새 멘션"로 시작하세요.
             </div>
           ) : (
             conversations.map((c) => (
@@ -139,7 +157,7 @@ export function MessagesPage() {
             <EmptyState
               icon={<MessageSquare size={36} />}
               title="대화를 선택하세요"
-              description="왼쪽에서 대화를 고르거나 새 쪽지를 보내보세요."
+              description="왼쪽에서 대화를 고르거나 새 멘션를 보내보세요."
             />
           </div>
         ) : (
@@ -161,7 +179,7 @@ export function MessagesPage() {
             <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-4 space-y-2">
               {!thread?.messages?.length ? (
                 <div className="text-center text-xs text-gray-400 mt-10">
-                  첫 쪽지를 보내보세요.
+                  첫 멘션을 보내보세요.
                 </div>
               ) : (
                 thread.messages.map((m) => {
@@ -215,13 +233,13 @@ export function MessagesPage() {
         )}
       </div>
 
-      {/* 새 쪽지 — 사용자 선택 모달 */}
+      {/* 새 멘션 — 사용자 선택 모달 */}
       {showPicker && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowPicker(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[70vh] flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
-              <h2 className="text-base font-bold text-gray-900">새 쪽지 보내기</h2>
+              <h2 className="text-base font-bold text-gray-900">새 멘션 보내기</h2>
               <button onClick={() => setShowPicker(false)} className="text-gray-400 hover:text-gray-600 p-1"><X size={18} /></button>
             </div>
             <div className="px-5 py-3 border-b border-gray-100">

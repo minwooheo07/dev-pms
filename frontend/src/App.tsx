@@ -21,6 +21,7 @@ import { NoticesPage } from './pages/notices/NoticesPage';
 import { PermissionsPage } from './pages/projects/PermissionsPage';
 import { MeetingCalendarPage } from './pages/meetings/MeetingCalendarPage';
 import { MessagesPage } from './pages/messages/MessagesPage';
+import { CanvasPage } from './pages/canvas/CanvasPage';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)();
@@ -79,6 +80,7 @@ export default function App() {
           <Route path="settings/profile" element={<ProfilePage />} />
           <Route path="admin/users" element={<AdminUsersPage />} />
           <Route path="messages" element={<MessagesPage />} />
+          <Route path="canvas" element={<CanvasPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

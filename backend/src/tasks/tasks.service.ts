@@ -257,9 +257,20 @@ export class TasksService {
   }
 
   async moveTask(taskId: string, userId: string, stepId: string | null, order: number) {
+    let statusUpdate: { status?: string } = {};
+    if (stepId) {
+      const step = await this.prisma.step.findUnique({ where: { id: stepId } });
+      if (step?.isDone) statusUpdate.status = 'DONE';
+      else {
+        const currentTask = await this.prisma.task.findUnique({ where: { id: taskId }, select: { status: true, stepId: true } });
+        const prevStep = currentTask?.stepId ? await this.prisma.step.findUnique({ where: { id: currentTask.stepId } }) : null;
+        if (prevStep?.isDone && currentTask?.status === 'DONE') statusUpdate.status = 'IN_PROGRESS';
+      }
+    }
+
     const task = await this.prisma.task.update({
       where: { id: taskId },
-      data: { stepId, order },
+      data: { stepId, order, ...statusUpdate },
       select: TASK_SELECT,
     });
 
