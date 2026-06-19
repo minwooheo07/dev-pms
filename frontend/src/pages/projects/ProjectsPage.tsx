@@ -31,7 +31,7 @@ export function ProjectsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'ALL'>('ALL');
   const [createOpen, setCreateOpen] = useState(false);
-  const [form, setForm] = useState({ name: '', description: '', color: '#e60012', startDate: '', endDate: '' });
+  const [form, setForm] = useState({ name: '', description: '', color: '#e60012', startDate: '', endDate: '', openDate: '' });
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ['projects'],
@@ -43,7 +43,7 @@ export function ProjectsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['projects'] });
       setCreateOpen(false);
-      setForm({ name: '', description: '', color: '#e60012', startDate: '', endDate: '' });
+      setForm({ name: '', description: '', color: '#e60012', startDate: '', endDate: '', openDate: '' });
       toast.success('프로젝트가 생성되었습니다.');
     },
     onError: () => toast.error('프로젝트 생성에 실패했습니다.'),
@@ -217,6 +217,7 @@ export function ProjectsPage() {
               color: form.color,
               startDate: form.startDate || undefined,
               endDate: form.endDate || undefined,
+              openDate: form.openDate || undefined,
             } as any);
           }}
           className="p-6 space-y-4"
@@ -239,21 +240,29 @@ export function ProjectsPage() {
             />
           </div>
           <div className="flex gap-4">
-            <Input
-              label="시작일"
-              type="date"
-              value={form.startDate}
-              onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-              className="flex-1"
-            />
-            <Input
-              label="마감일"
-              type="date"
-              value={form.endDate}
-              onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-              className="flex-1"
-            />
+            <div className="flex-1">
+              <Input
+                label="시작일"
+                type="date"
+                value={form.startDate}
+                onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+              />
+            </div>
+            <div className="flex-1">
+              <Input
+                label="종료일"
+                type="date"
+                value={form.endDate}
+                onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+              />
+            </div>
           </div>
+          <Input
+            label="오픈예정일"
+            type="date"
+            value={form.openDate}
+            onChange={(e) => setForm({ ...form, openDate: e.target.value })}
+          />
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-gray-600">색상</label>
             <div className="flex gap-2 flex-wrap">

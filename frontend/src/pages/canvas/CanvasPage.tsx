@@ -396,7 +396,8 @@ export function CanvasPage() {
   }, [onNodesChangeBase]);
 
   const onEdgesChange = useCallback((changes: any[]) => {
-    isDirty.current = true;
+    const meaningful = changes.some((c: any) => c.type !== 'select');
+    if (meaningful) isDirty.current = true;
     onEdgesChangeBase(changes);
   }, [onEdgesChangeBase]);
 

@@ -52,7 +52,7 @@ export function ProjectDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [form, setForm] = useState({
     name: '', description: '', status: 'ACTIVE' as ProjectStatus,
-    color: '#e60012', icon: '📁', startDate: '', endDate: '',
+    color: '#e60012', icon: '📁', startDate: '', endDate: '', openDate: '',
   });
 
   const { data: project, isLoading, isError, refetch } = useQuery({
@@ -177,6 +177,7 @@ export function ProjectDetailPage() {
       icon: project.icon ?? '📁',
       startDate: project.startDate ? project.startDate.slice(0, 10) : '',
       endDate: project.endDate ? project.endDate.slice(0, 10) : '',
+      openDate: project.openDate ? project.openDate.slice(0, 10) : '',
     });
     setEditOpen(true);
   };
@@ -254,13 +255,43 @@ export function ProjectDetailPage() {
           { label: '전체 태스크', value: stats?.total ?? 0, color: 'text-gray-900' },
           { label: '완료율', value: `${completionRate}%`, color: 'text-emerald-600' },
           { label: '기한 초과', value: stats?.overdue ?? 0, color: 'text-red-600' },
-          { label: '멤버', value: project.members.length, color: 'text-gray-600' },
         ].map((s) => (
           <div key={s.label} className="bg-white/85 backdrop-blur-md rounded-xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04),0_0_0_1px_rgba(255,255,255,0.9)_inset] ring-1 ring-gray-900/5 p-4">
             <p className={cn('text-2xl font-bold', s.color)}>{s.value}</p>
             <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
           </div>
         ))}
+        {/* 오픈예정일 카드 — 그래디언트 */}
+        {(() => {
+          const dday = project.openDate ? (() => {
+            const today = new Date(); today.setHours(0,0,0,0);
+            const open  = new Date(project.openDate); open.setHours(0,0,0,0);
+            return Math.round((open.getTime() - today.getTime()) / 86400000);
+          })() : null;
+          const ddayLabel = dday === null ? null : dday === 0 ? 'D-Day' : dday > 0 ? `D-${dday}` : `D+${Math.abs(dday)}`;
+          return (
+            <div className="rounded-xl p-4 text-white" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)', boxShadow: '0 4px 16px rgba(248,80,50,0.35)' }}>
+              <div className="flex items-center justify-between h-full">
+                <div>
+                  <div className="flex items-baseline gap-1.5">
+                    <p className="text-2xl font-bold">{project.openDate ? formatDate(project.openDate) : '-'}</p>
+                    {project.openDate && (
+                      <span className="text-sm font-medium text-white/80">
+                        {['일', '월', '화', '수', '목', '금', '토'][new Date(project.openDate).getDay()]}요일
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs mt-0.5 text-white/70">오픈예정일</p>
+                </div>
+                {ddayLabel && (
+                  <div className={`px-3 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${dday === 0 ? 'bg-white text-orange-500' : dday! < 0 ? 'bg-white/20 text-white' : 'bg-white/25 text-white'}`}>
+                    {ddayLabel}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* 메인 3열 레이아웃: 왼쪽 2열(콘텐츠) + 오른쪽 1열(팀 멤버) */}
@@ -733,6 +764,7 @@ export function ProjectDetailPage() {
               icon: form.icon,
               startDate: form.startDate || undefined,
               endDate: form.endDate || undefined,
+              openDate: form.openDate || undefined,
             });
           }}
           className="p-6 space-y-4"
@@ -790,21 +822,29 @@ export function ProjectDetailPage() {
           </div>
 
           <div className="flex gap-4">
-            <Input
-              label="시작일"
-              type="date"
-              value={form.startDate}
-              onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-              className="flex-1"
-            />
-            <Input
-              label="마감일"
-              type="date"
-              value={form.endDate}
-              onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-              className="flex-1"
-            />
+            <div className="flex-1">
+              <Input
+                label="시작일"
+                type="date"
+                value={form.startDate}
+                onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+              />
+            </div>
+            <div className="flex-1">
+              <Input
+                label="종료일"
+                type="date"
+                value={form.endDate}
+                onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+              />
+            </div>
           </div>
+          <Input
+            label="오픈예정일"
+            type="date"
+            value={form.openDate}
+            onChange={(e) => setForm({ ...form, openDate: e.target.value })}
+          />
 
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-gray-600">색상</label>

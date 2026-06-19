@@ -188,7 +188,7 @@ const MemoCell = memo(function Cell({
           defaultValue={editInitVal}
           onFocus={e => { const len = e.target.value.length; e.target.setSelectionRange(len, len); }}
           onKeyDown={e => {
-            if (e.key === 'Enter') { e.preventDefault(); onCommit(); onMoveAfterEdit(r, c, 1, 0); }
+            if (e.key === 'Enter') { if (e.isComposing) return; e.preventDefault(); onCommit(); onMoveAfterEdit(r, c, 1, 0); }
             else if (e.key === 'Escape') { onEscape(); }
             else if (e.key === 'Tab') { e.preventDefault(); onCommit(); onMoveAfterEdit(r, c, 0, 1); }
             e.stopPropagation();
@@ -334,9 +334,15 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
 
   const handleMoveAfterEdit = useCallback((r: number, c: number, dr: number, dc: number) => {
     const d = dataRef.current;
-    setSelStart([Math.min(r + dr, d.rows - 1), Math.min(c + dc, d.cols - 1)]);
+    const nr = Math.min(r + dr, d.rows - 1);
+    const nc = Math.min(c + dc, d.cols - 1);
+    setSelStart([nr, nc]);
     setSelEnd(null);
-    containerRef.current?.focus({ preventScroll: true });
+    // 다음 셀에서 바로 편집 모드 진입 → IME 한국어 모드 유지
+    editInitVal.current = norm(d.cells[ck(nr, nc)]).v ?? '';
+    setEditKey(k => k + 1);
+    flushSync(() => { setEditing(true); editingRef.current = true; });
+    inputRef.current?.focus();
   }, []);
 
   useEffect(() => { if (editing && inputRef.current) inputRef.current.focus(); }, [editing]);
@@ -528,7 +534,7 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
     }
 
     if (editingRef.current) {
-      if (e.key === 'Enter') { e.preventDefault(); commitEdit(); setSelStart([Math.min(r+1, rows-1), c]); setSelEnd(null); }
+      if (e.key === 'Enter') { if (e.isComposing) return; e.preventDefault(); commitEdit(); setSelStart([Math.min(r+1, rows-1), c]); setSelEnd(null); }
       else if (e.key === 'Escape') { setEditing(false); editingRef.current = false; setCopyRange(null); clipboardRef.current = null; }
       else if (e.key === 'Tab') { e.preventDefault(); commitEdit(); setSelStart([r, Math.min(c+1, cols-1)]); setSelEnd(null); }
       return;
@@ -567,7 +573,8 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
           else delete newCells[k];
         }
       recordChange({ ...d, cells: newCells });
-    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.isComposing) {
+      e.preventDefault();
       editInitVal.current = e.key;
       setEditKey(k => k + 1);
       setSelEnd(null);
@@ -1070,11 +1077,11 @@ export function SheetEditorPage() {
           <span className="text-[11px] text-gray-400">{saving ? '저장 중...' : '자동 저장'}</span>
           <button
             onClick={exportExcel}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg transition-colors"
+            className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-primary-600 bg-white hover:bg-primary-50 border border-gray-200 hover:border-primary-300 px-3 py-1.5 rounded-lg transition-colors"
             title="Excel 파일로 다운로드"
           >
             <Download size={13} />
-            Excel 다운로드
+            엑셀 다운로드
           </button>
         </div>
       </div>

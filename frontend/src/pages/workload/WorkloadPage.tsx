@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Clock, Briefcase, Trash2, X, Pencil, CheckCircle2, Check, Filter } from 'lucide-react';
+import { Plus, Clock, Briefcase, Trash2, X, Pencil, CheckCircle2, Check, Filter, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 import { worklogsApi, STAGE_CONFIG, STAGE_ORDER, type WorkLogStage } from '../../api/worklogs';
 import { projectsApi } from '../../api/projects';
@@ -166,6 +167,23 @@ export function WorkloadPage() {
 
   const activeFilters = [filterUser, filterStage, filterStart, filterEnd].filter(Boolean).length;
 
+  const downloadExcel = () => {
+    const rows = filteredLogs.map((log: any) => ({
+      '날짜': displayDate(log),
+      '담당자': log.user.name,
+      '태스크': log.task?.title ?? log.taskTitle ?? '-',
+      '프로젝트': log.task?.project?.name ?? log.projectName ?? '-',
+      '업무 내용': log.description || '-',
+      '공수(h)': log.hours,
+      '단계': STAGE_CONFIG[log.stage as WorkLogStage]?.label ?? log.stage,
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '워크로드');
+    const filename = `워크로드_${filterStart || '전체'}_${filterEnd || '전체'}.xlsx`;
+    XLSX.writeFile(wb, filename);
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -184,11 +202,6 @@ export function WorkloadPage() {
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-400">
             <Filter size={12} /> 조회 조건
-            {activeFilters > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 bg-primary-100 text-gray-800 rounded-full text-[10px] font-bold">
-                {activeFilters}
-              </span>
-            )}
           </div>
 
           {/* 기간 */}
@@ -273,6 +286,15 @@ export function WorkloadPage() {
               초기화
             </button>
           )}
+
+          <button
+            onClick={downloadExcel}
+            disabled={!filteredLogs.length}
+            className="ml-auto flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-primary-600 bg-white hover:bg-primary-50 border border-gray-200 hover:border-primary-300 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Download size={13} />
+            엑셀 다운로드
+          </button>
         </div>
       </div>
 

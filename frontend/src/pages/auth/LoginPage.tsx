@@ -174,7 +174,7 @@ export function LoginPage() {
           </p>
         </div>
 
-        <p className="text-center text-xs text-gray-600 mt-6">
+        <p className="text-center text-xs text-white/70 mt-6 font-medium tracking-wide">
           소규모 팀을 위한 프로젝트 관리 도구
         </p>
       </div>
