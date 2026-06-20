@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { User, Lock, Phone, Briefcase, Building, Save, Eye, EyeOff, CheckCircle, Smile, Bell, X } from 'lucide-react';
+import { User, Phone, Briefcase, Building, Save, Smile, Bell, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { usersApi } from '../../api/users';
 import { useAuthStore } from '../../store/auth.store';
@@ -96,23 +96,6 @@ export function ProfilePage() {
     onError: () => toast.error('저장에 실패했습니다.'),
   });
 
-  const _changePassword = useMutation({
-    mutationFn: (_: { currentPassword: string; newPassword: string }) =>
-      usersApi.changePassword(_),
-    onSuccess: () => {
-      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      setPwChanged(true);
-      setTimeout(() => setPwChanged(false), 3000);
-      toast.success('비밀번호가 변경되었습니다.');
-    },
-    onError: (e: any) =>
-      toast.error(e.response?.data?.message ?? '비밀번호 변경에 실패했습니다.'),
-  });
-
-  const pwValid =
-    pwForm.currentPassword.length > 0 &&
-    pwForm.newPassword.length >= 6 &&
-    pwForm.newPassword === pwForm.confirmPassword;
 
   return (
     <div className="flex flex-col h-full">
