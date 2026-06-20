@@ -478,7 +478,8 @@ export function DashboardPage() {
                 <button
                   ref={statusBtnRef}
                   onClick={() => setStatusOpen((v) => !v)}
-                  className="flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-xl transition-all hover:scale-105 active:scale-95"
+                  className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 rounded-xl transition-all hover:scale-105 active:scale-95"
+                  style={{ height: 32 }}
                   style={{
                     background: 'rgba(255,255,255,0.55)',
                     backdropFilter: 'blur(12px)',
@@ -488,8 +489,8 @@ export function DashboardPage() {
                     color: '#374151',
                   }}
                 >
-                  <span className="text-base leading-none">{user?.statusEmoji || '🟢'}</span>
-                  <span className="max-w-[160px] truncate">{user?.statusText || '상태 설정'}</span>
+                  <span style={{ fontSize: 16, lineHeight: 1, display: 'flex', alignItems: 'center' }}>{user?.statusEmoji || '🟢'}</span>
+                  <span className="max-w-[160px] truncate" style={{ lineHeight: 1 }}>{user?.statusText || '상태 설정'}</span>
                 </button>
 
                 {/* 상태 편집 팝오버 */}
