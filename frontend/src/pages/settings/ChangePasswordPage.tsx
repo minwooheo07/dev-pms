@@ -15,7 +15,7 @@ export function ChangePasswordPage() {
 
   const pwValid =
     form.currentPassword.length > 0 &&
-    form.newPassword.length >= 6 &&
+    form.newPassword.length >= 8 &&
     form.newPassword === form.confirmPassword;
 
   const changePassword = useMutation({
@@ -79,7 +79,7 @@ export function ChangePasswordPage() {
 
                 {/* 새 비밀번호 */}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">새 비밀번호 (6자 이상)</label>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">새 비밀번호 (8자 이상)</label>
                   <div className="relative">
                     <input
                       type={showPw.next ? 'text' : 'password'}
