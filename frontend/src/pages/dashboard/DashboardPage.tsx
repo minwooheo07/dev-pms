@@ -422,7 +422,10 @@ export function DashboardPage() {
                 전체 보기 <ChevronRight size={14} />
               </Link>
             </div>
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <div className={cn(
+              'grid grid-cols-1 gap-4',
+              (projects ?? []).length > 1 && 'xl:grid-cols-2',
+            )}>
               {(projects ?? []).map((p, idx) => (
                 <ProjectCardWide key={p.id} project={p} stats={statsQueries[idx]?.data as ProjectStats | undefined} />
               ))}

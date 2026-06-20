@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Users, Activity, Calendar, Pencil, Megaphone, Pin, ChevronLeft, ChevronRight, ChevronDown, UserPlus, X, Crown, ShieldCheck, Eye, Search, ArrowRight, Trash2, MessageSquare, BarChart2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -55,11 +55,20 @@ export function ProjectDetailPage() {
     color: '#e60012', icon: '📁', startDate: '', endDate: '', openDate: '',
   });
 
-  const { data: project, isLoading, isError, refetch } = useQuery({
+  const navigate = useNavigate();
+  const { data: project, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['project', projectId],
     queryFn: () => projectsApi.getOne(projectId!),
     enabled: !!projectId,
+    retry: (count, err: any) => err?.response?.status === 404 ? false : count < 1,
   });
+
+  // 삭제된 프로젝트(404) 감지 시 목록 캐시도 최신화 (사이드바/대시보드 반영)
+  useEffect(() => {
+    if (isError && (error as any)?.response?.status === 404) {
+      qc.invalidateQueries({ queryKey: ['projects'] });
+    }
+  }, [isError, error, qc]);
 
   const updateProject = useMutation({
     mutationFn: (data: any) => projectsApi.update(projectId!, data),
@@ -203,6 +212,26 @@ export function ProjectDetailPage() {
     );
   }
 
+  // 삭제됐거나 접근 권한이 없는 프로젝트
+  if (isError && (error as any)?.response?.status === 404) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
+          <X size={28} className="text-gray-400" />
+        </div>
+        <h2 className="text-lg font-bold text-gray-800 mb-1.5">프로젝트를 찾을 수 없습니다</h2>
+        <p className="text-sm text-gray-400 mb-6 max-w-sm">
+          삭제되었거나 접근 권한이 없는 프로젝트입니다.
+        </p>
+        <button
+          onClick={() => navigate('/projects')}
+          className="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors"
+        >
+          프로젝트 목록으로
+        </button>
+      </div>
+    );
+  }
   if (isError) return <ErrorState className="p-12" onRetry={refetch} />;
   if (!project) return null;
 
