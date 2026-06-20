@@ -134,6 +134,20 @@ export function ProjectDetailPage() {
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
 
+  // 오픈예정일 달력 팝업
+  const [openDatePopup, setOpenDatePopup] = useState(false);
+  const [openDateMonth, setOpenDateMonth] = useState(() => new Date());
+  const openDatePopupDays = useMemo(() => {
+    const year = openDateMonth.getFullYear();
+    const month = openDateMonth.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const lastDate = new Date(year, month + 1, 0).getDate();
+    const days: (number | null)[] = Array(firstDay).fill(null);
+    for (let d = 1; d <= lastDate; d++) days.push(d);
+    while (days.length % 7 !== 0) days.push(null);
+    return days;
+  }, [openDateMonth]);
+
   const { data: tasks } = useQuery({
     queryKey: ['tasks', projectId],
     queryFn: () => tasksApi.getAll(projectId!),
@@ -298,26 +312,96 @@ export function ProjectDetailPage() {
             return Math.round((open.getTime() - today.getTime()) / 86400000);
           })() : null;
           const ddayLabel = dday === null ? null : dday === 0 ? 'D-Day' : dday > 0 ? `D-${dday}` : `D+${Math.abs(dday)}`;
+          const openDateObj = project.openDate ? new Date(project.openDate) : null;
           return (
-            <div className="rounded-xl p-4 text-white" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)', boxShadow: '0 4px 16px rgba(248,80,50,0.35)' }}>
-              <div className="flex items-center justify-between h-full">
-                <div>
-                  <div className="flex items-baseline gap-1.5">
-                    <p className="text-2xl font-bold">{project.openDate ? formatDate(project.openDate) : '-'}</p>
-                    {project.openDate && (
-                      <span className="text-sm font-medium text-white/80">
-                        {['일', '월', '화', '수', '목', '금', '토'][new Date(project.openDate).getDay()]}요일
+            <div className="relative">
+              <div
+                className="rounded-xl p-4 text-white cursor-pointer hover:opacity-90 transition-opacity"
+                style={{ background: 'linear-gradient(135deg, #f85032, #e73827)', boxShadow: '0 4px 16px rgba(248,80,50,0.35)' }}
+                onClick={() => {
+                  setOpenDateMonth(openDateObj ? new Date(openDateObj.getFullYear(), openDateObj.getMonth(), 1) : new Date());
+                  setOpenDatePopup(v => !v);
+                }}
+              >
+                <div className="flex items-center justify-between h-full">
+                  <div>
+                    <div className="flex items-baseline gap-1.5">
+                      <p className="text-2xl font-bold">{project.openDate ? formatDate(project.openDate) : '-'}</p>
+                      {project.openDate && (
+                        <span className="text-sm font-medium text-white/80">
+                          {['일', '월', '화', '수', '목', '금', '토'][new Date(project.openDate).getDay()]}요일
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs mt-0.5 text-white/70">오픈예정일</p>
+                  </div>
+                  {ddayLabel && (
+                    <div className={`px-3 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${dday === 0 ? 'bg-white text-orange-500' : dday! < 0 ? 'bg-white/20 text-white' : 'bg-white/25 text-white'}`}>
+                      {ddayLabel}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 달력 팝업 */}
+              {openDatePopup && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setOpenDatePopup(false)} />
+                  <div className="absolute left-0 top-full mt-2 z-50 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
+                    {/* 팝업 헤더 */}
+                    <div className="px-4 py-3 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
+                      <button onClick={(e) => { e.stopPropagation(); setOpenDateMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1)); }}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/20 text-white transition-colors">
+                        <ChevronLeft size={15} />
+                      </button>
+                      <span className="text-sm font-bold text-white">
+                        {openDateMonth.getFullYear()}년 {openDateMonth.getMonth() + 1}월
                       </span>
+                      <button onClick={(e) => { e.stopPropagation(); setOpenDateMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1)); }}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/20 text-white transition-colors">
+                        <ChevronRight size={15} />
+                      </button>
+                    </div>
+                    {/* 요일 헤더 */}
+                    <div className="grid grid-cols-7 px-3 pt-3 pb-1">
+                      {['일','월','화','수','목','금','토'].map((d, i) => (
+                        <div key={d} className={cn('text-center text-[10px] font-semibold pb-1', i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-gray-400')}>{d}</div>
+                      ))}
+                    </div>
+                    {/* 날짜 그리드 */}
+                    <div className="grid grid-cols-7 px-3 pb-3 gap-y-0.5">
+                      {openDatePopupDays.map((day, idx) => {
+                        if (!day) return <div key={idx} />;
+                        const isOpenDate = openDateObj &&
+                          openDateObj.getFullYear() === openDateMonth.getFullYear() &&
+                          openDateObj.getMonth() === openDateMonth.getMonth() &&
+                          openDateObj.getDate() === day;
+                        const col = idx % 7;
+                        return (
+                          <div key={idx} className="flex items-center justify-center py-0.5">
+                            <div className={cn(
+                              'w-8 h-8 flex items-center justify-center rounded-full text-xs font-medium',
+                              isOpenDate ? 'text-white font-bold shadow-md' : col === 0 ? 'text-red-400' : col === 6 ? 'text-blue-400' : 'text-gray-700',
+                            )}
+                            style={isOpenDate ? { background: 'linear-gradient(135deg, #f85032, #e73827)' } : undefined}>
+                              {day}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {/* 오픈예정일 표시 하단 */}
+                    {openDateObj && (
+                      <div className="mx-3 mb-3 px-3 py-2 rounded-xl text-xs font-semibold text-white flex items-center gap-2"
+                        style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
+                        <Calendar size={12} />
+                        오픈예정일: {formatDate(project.openDate!)}
+                        {ddayLabel && <span className="ml-auto bg-white/25 px-2 py-0.5 rounded-full">{ddayLabel}</span>}
+                      </div>
                     )}
                   </div>
-                  <p className="text-xs mt-0.5 text-white/70">오픈예정일</p>
-                </div>
-                {ddayLabel && (
-                  <div className={`px-3 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${dday === 0 ? 'bg-white text-orange-500' : dday! < 0 ? 'bg-white/20 text-white' : 'bg-white/25 text-white'}`}>
-                    {ddayLabel}
-                  </div>
-                )}
-              </div>
+                </>
+              )}
             </div>
           );
         })()}
