@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pin, Pencil, Trash2, X, Megaphone, PinOff } from 'lucide-react';
+import { Plus, Pin, Pencil, Trash2, X, Megaphone, PinOff, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { noticesApi } from '../../api/notices';
 import { useAuthStore } from '../../store/auth.store';
@@ -26,7 +26,7 @@ export function NoticesPage() {
   const [showModal, setShowModal] = useState(false);
   const [editNotice, setEditNotice] = useState<any>(null);
   const [form, setForm] = useState<NoticeForm>(empty());
-  const [viewNotice, setViewNotice] = useState<any>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data: notices, isLoading } = useQuery({
     queryKey: ['notices', projectId],
@@ -57,7 +57,6 @@ export function NoticesPage() {
   const openEdit = (n: any) => {
     setEditNotice(n);
     setForm({ title: n.title, content: n.content, isPinned: n.isPinned });
-    setViewNotice(null);
   };
 
   const openCreate = () => {
@@ -113,13 +112,14 @@ export function NoticesPage() {
                 <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   <Pin size={11} /> 고정 공지
                 </p>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {pinnedNotices.map((n: any) => (
                     <NoticeCard
                       key={n.id}
                       notice={n}
                       isAdmin={isAdmin}
-                      onView={() => setViewNotice(n)}
+                      expanded={expandedId === n.id}
+                      onToggle={() => setExpandedId(expandedId === n.id ? null : n.id)}
                       onEdit={() => openEdit(n)}
                       onDelete={() => { if (confirm('삭제하시겠습니까?')) deleteNotice.mutate(n.id); }}
                     />
@@ -134,13 +134,14 @@ export function NoticesPage() {
                 {pinnedNotices.length > 0 && (
                   <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">일반 공지</p>
                 )}
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {regularNotices.map((n: any) => (
                     <NoticeCard
                       key={n.id}
                       notice={n}
                       isAdmin={isAdmin}
-                      onView={() => setViewNotice(n)}
+                      expanded={expandedId === n.id}
+                      onToggle={() => setExpandedId(expandedId === n.id ? null : n.id)}
                       onEdit={() => openEdit(n)}
                       onDelete={() => { if (confirm('삭제하시겠습니까?')) deleteNotice.mutate(n.id); }}
                     />
@@ -178,89 +179,37 @@ export function NoticesPage() {
         />
       )}
 
-      {/* 보기 모달 */}
-      {viewNotice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setViewNotice(null)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
-            <div className="flex items-start justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
-              <div className="flex-1 min-w-0 pr-4">
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  {viewNotice.isPinned && (
-                    <span className="inline-flex items-center gap-1 text-[10px] bg-primary-50 text-gray-600 px-1.5 py-0.5 rounded font-medium">
-                      <Pin size={9} /> 고정
-                    </span>
-                  )}
-                  <h2 className="text-base font-bold text-gray-800">{viewNotice.title}</h2>
-                </div>
-                <p className="text-xs text-gray-400">
-                  {viewNotice.createdBy.name} · {formatDate(viewNotice.createdAt)} 작성
-                  {viewNotice.updatedAt !== viewNotice.createdAt && ` · ${formatRelativeTime(viewNotice.updatedAt)} 수정`}
-                </p>
-              </div>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                {isAdmin && (
-                  <>
-                    <button
-                      onClick={() => openEdit(viewNotice)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-primary-50 rounded-lg transition-colors"
-                    >
-                      <Pencil size={14} />
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (confirm('삭제하시겠습니까?')) {
-                          deleteNotice.mutate(viewNotice.id);
-                          setViewNotice(null);
-                        }
-                      }}
-                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </>
-                )}
-                <button onClick={() => setViewNotice(null)} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg">
-                  <X size={16} />
-                </button>
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto px-6 py-5">
-              <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{viewNotice.content}</p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
-function NoticeCard({ notice, isAdmin, onView, onEdit, onDelete }: {
-  notice: any; isAdmin: boolean;
-  onView: () => void; onEdit: () => void; onDelete: () => void;
+function NoticeCard({ notice, isAdmin, expanded, onToggle, onEdit, onDelete }: {
+  notice: any; isAdmin: boolean; expanded: boolean;
+  onToggle: () => void; onEdit: () => void; onDelete: () => void;
 }) {
   return (
-    <div
-      className={cn(
-        'group bg-white rounded-xl border p-4 hover:shadow-sm transition-all cursor-pointer',
-        notice.isPinned ? 'border-gray-100 bg-primary-50/30' : 'border-gray-200',
-      )}
-      onClick={onView}
-    >
-      <div className="flex items-start gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            {notice.isPinned && (
-              <span className="inline-flex items-center gap-1 text-[10px] bg-primary-100 text-gray-600 px-1.5 py-0.5 rounded font-medium flex-shrink-0">
-                <Pin size={9} /> 고정
-              </span>
-            )}
-            <h3 className="text-sm font-semibold text-gray-700 truncate">{notice.title}</h3>
-          </div>
-          <p className="text-xs text-gray-500 line-clamp-2 whitespace-pre-wrap">{notice.content}</p>
-          <p className="text-xs text-gray-400 mt-2">
-            {notice.createdBy.name} · {formatRelativeTime(notice.createdAt)}
-          </p>
+    <div className="group bg-white rounded-xl border border-gray-200 overflow-hidden transition-shadow hover:shadow-sm">
+      {/* 헤더 행 — 배경색 없음 */}
+      <button
+        className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
+        onClick={onToggle}
+      >
+        <ChevronDown
+          size={15}
+          className={cn('text-gray-400 flex-shrink-0 transition-transform duration-200', expanded && 'rotate-180')}
+        />
+        <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+          {notice.isPinned && (
+            <span className="inline-flex items-center gap-1 text-[10px] border border-primary-200 text-primary-600 px-1.5 py-0.5 rounded font-medium flex-shrink-0">
+              <Pin size={9} /> 고정
+            </span>
+          )}
+          <span className="text-sm font-semibold text-gray-800 truncate">{notice.title}</span>
+          {!expanded && (
+            <span className="text-xs text-gray-400 truncate hidden sm:block">
+              — {notice.createdBy.name} · {formatRelativeTime(notice.createdAt)}
+            </span>
+          )}
         </div>
         {isAdmin && (
           <div
@@ -269,7 +218,7 @@ function NoticeCard({ notice, isAdmin, onView, onEdit, onDelete }: {
           >
             <button
               onClick={onEdit}
-              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-primary-50 rounded-lg transition-colors"
+              className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
             >
               <Pencil size={13} />
             </button>
@@ -281,7 +230,18 @@ function NoticeCard({ notice, isAdmin, onView, onEdit, onDelete }: {
             </button>
           </div>
         )}
-      </div>
+      </button>
+
+      {/* 펼쳐진 본문 — 배경색 적용 */}
+      {expanded && (
+        <div className="bg-gray-50 border-t border-gray-100 px-5 py-4">
+          <p className="text-xs text-gray-400 mb-3">
+            {notice.createdBy.name} · {formatDate(notice.createdAt)} 작성
+            {notice.updatedAt !== notice.createdAt && ` · ${formatRelativeTime(notice.updatedAt)} 수정`}
+          </p>
+          <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{notice.content}</p>
+        </div>
+      )}
     </div>
   );
 }
