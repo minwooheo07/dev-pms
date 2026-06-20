@@ -273,7 +273,7 @@ export function TemplatesPage() {
                   <h2 className="text-sm font-bold text-gray-700">{phase}</h2>
                   <span className="text-[11px] text-gray-400">{items.length}</span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                   {items.map((t) => (
                     <div
                       key={t.id}
@@ -281,11 +281,11 @@ export function TemplatesPage() {
                       className="group relative bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
                     >
                       {/* 썸네일 */}
-                      <div className="h-28 bg-gradient-to-br from-indigo-50 via-indigo-50 to-white flex items-center justify-center">
-                        <FileText size={34} className="text-indigo-300" />
+                      <div className="h-16 bg-gradient-to-br from-indigo-50 via-indigo-50 to-white flex items-center justify-center">
+                        <FileText size={22} className="text-indigo-300" />
                       </div>
                       {/* 정보 */}
-                      <div className="px-3 py-2.5 border-t border-gray-100">
+                      <div className="px-3 py-2 border-t border-gray-100">
                         <p className="text-sm font-medium text-gray-900 truncate">{t.title}</p>
                         {t.description
                           ? <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{t.description}</p>

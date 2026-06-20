@@ -155,7 +155,7 @@ export function SheetListPage() {
             }
           />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {sheets.map((sheet: any) => (
               <div
                 key={sheet.id}
@@ -163,16 +163,11 @@ export function SheetListPage() {
                 onClick={() => navigate(`/projects/${projectId}/sheet/${sheet.id}`)}
               >
                 {/* 썸네일 */}
-                <div className="h-36 bg-gradient-to-br from-emerald-50 via-teal-50 to-white flex items-center justify-center">
-                  <div className="grid grid-cols-4 gap-0.5 opacity-30">
-                    {Array.from({ length: 16 }).map((_, i) => (
-                      <div key={i} className="w-6 h-4 border border-emerald-400 bg-emerald-100 rounded-sm" />
-                    ))}
-                  </div>
-                  <Table2 size={36} className="text-emerald-300 absolute" />
+                <div className="h-20 bg-gradient-to-br from-emerald-50 via-teal-50 to-white flex items-center justify-center">
+                  <Table2 size={24} className="text-emerald-300" />
                 </div>
 
-                <div className="px-3 py-2.5 border-t border-gray-100">
+                <div className="px-3 py-2 border-t border-gray-100">
                   {renamingId === sheet.id ? (
                     <input
                       autoFocus
