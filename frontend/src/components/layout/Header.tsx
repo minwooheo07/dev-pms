@@ -304,12 +304,12 @@ export function Header() {
         {/* Messages */}
         <button
           onClick={() => { setMsgOpen(!msgOpen); setNotifOpen(false); }}
-          className="group relative h-8 flex items-center justify-center rounded-lg text-gray-500 hover:text-[#e73827] hover:bg-red-50 transition-all duration-200 overflow-hidden w-8 hover:w-auto hover:px-2.5 gap-0 hover:gap-1.5"
+          className="group relative h-8 flex items-center gap-1 px-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
         >
           <Mail size={16} className={(msgUnread?.count ?? 0) > 0 ? 'mail-blink flex-shrink-0' : 'flex-shrink-0'} />
-          <span className="max-w-0 group-hover:max-w-[3rem] overflow-hidden whitespace-nowrap text-xs font-semibold transition-all duration-200 opacity-0 group-hover:opacity-100">멘션</span>
+          <span className="max-w-0 group-hover:max-w-[2.5rem] overflow-hidden whitespace-nowrap text-xs transition-all duration-200">멘션</span>
           {(msgUnread?.count ?? 0) > 0 && (
-            <span className="absolute top-1 right-1 group-hover:static group-hover:top-auto group-hover:right-auto min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5 flex-shrink-0 transition-all duration-200">
+            <span className="min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5 flex-shrink-0">
               {msgUnread!.count > 9 ? '9+' : msgUnread!.count}
             </span>
           )}
@@ -324,12 +324,12 @@ export function Header() {
         <div className="relative">
           <button
             onClick={() => { setNotifOpen(!notifOpen); setMsgOpen(false); }}
-            className="group relative h-8 flex items-center justify-center rounded-lg text-gray-500 hover:text-[#e73827] hover:bg-red-50 transition-all duration-200 overflow-hidden w-8 hover:w-auto hover:px-2.5 gap-0 hover:gap-1.5"
+            className="group relative h-8 flex items-center gap-1 px-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
           >
             <Bell size={16} className="flex-shrink-0" />
-            <span className="max-w-0 group-hover:max-w-[3rem] overflow-hidden whitespace-nowrap text-xs font-semibold transition-all duration-200 opacity-0 group-hover:opacity-100">알림</span>
+            <span className="max-w-0 group-hover:max-w-[2.5rem] overflow-hidden whitespace-nowrap text-xs transition-all duration-200">알림</span>
             {(unread?.count ?? 0) > 0 && (
-              <span className="absolute top-1 right-1 group-hover:static group-hover:top-auto group-hover:right-auto min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5 flex-shrink-0 transition-all duration-200">
+              <span className="min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5 flex-shrink-0">
                 {unread!.count > 9 ? '9+' : unread!.count}
               </span>
             )}
