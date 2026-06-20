@@ -987,8 +987,7 @@ export function WorkloadPage() {
                     <BarChart2 size={32} className="mb-2 opacity-30" />
                     <p className="text-sm">조회된 데이터가 없습니다</p>
                   </div>
-                ) : (
-                  {(() => {
+                ) : (() => {
                     const LANE_H = 52;        // 레인 높이
                     const NAME_W = 88;        // 담당자 이름 열 너비
                     const CHART_W = 620;      // 꺾은선 영역 너비
@@ -1094,8 +1093,7 @@ export function WorkloadPage() {
                         )}
                       </>
                     );
-                  })()}
-                )}
+                  })()
               </div>
             </div>
           </div>
