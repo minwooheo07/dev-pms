@@ -368,8 +368,7 @@ export function DashboardPage() {
             <p className="text-sm font-medium text-primary-500 mb-1">
               {now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
             </p>
-            <h1 className="text-3xl font-extrabold tracking-tight"
-              style={{ background: 'linear-gradient(135deg, #111827 0%, #374151 60%, #be123c 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">
               안녕하세요, {user?.name}님
             </h1>
             <p className="text-gray-400 mt-1.5">오늘도 팀과 함께 목표를 향해 나아가세요.</p>
