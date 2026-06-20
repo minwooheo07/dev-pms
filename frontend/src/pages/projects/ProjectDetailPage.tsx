@@ -353,8 +353,9 @@ export function ProjectDetailPage() {
                         </div>
                       </button>
                       {isOpen && n.content && (
-                        <div className="px-5 pb-3 pt-0">
-                          <p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed bg-primary-50 rounded-lg px-3 py-2.5">{n.content}</p>
+                        <div className="border-t border-gray-100 px-5 pb-3 pt-3 bg-gray-50">
+                          <p className="text-[11px] text-gray-500 mb-2">{n.createdBy.name} · {formatDate(n.createdAt)} 작성</p>
+                          <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{n.content}</p>
                         </div>
                       )}
                     </div>
@@ -377,8 +378,9 @@ export function ProjectDetailPage() {
                         </div>
                       </button>
                       {isOpen && n.content && (
-                        <div className="px-5 pb-3 pt-0">
-                          <p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed bg-gray-50 rounded-lg px-3 py-2.5">{n.content}</p>
+                        <div className="border-t border-gray-100 px-5 pb-3 pt-3 bg-gray-50">
+                          <p className="text-[11px] text-gray-500 mb-2">{n.createdBy.name} · {formatDate(n.createdAt)} 작성</p>
+                          <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{n.content}</p>
                         </div>
                       )}
                     </div>

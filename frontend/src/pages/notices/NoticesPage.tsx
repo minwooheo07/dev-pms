@@ -189,57 +189,51 @@ function NoticeCard({ notice, isAdmin, expanded, onToggle, onEdit, onDelete }: {
 }) {
   return (
     <div className="group bg-white rounded-xl border border-gray-200 overflow-hidden transition-shadow hover:shadow-sm">
-      {/* 헤더 행 — 배경색 없음 */}
+      {/* 헤더 행 */}
       <button
-        className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
+        className="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors text-left"
         onClick={onToggle}
       >
-        <ChevronDown
-          size={15}
-          className={cn('text-gray-400 flex-shrink-0 transition-transform duration-200', expanded && 'rotate-180')}
-        />
-        <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+        {/* 핀 or 점 */}
+        {notice.isPinned
+          ? <Pin size={12} className="text-primary-400 flex-shrink-0" />
+          : <span className="w-1.5 h-1.5 rounded-full bg-gray-300 flex-shrink-0" />
+        }
+
+        {/* 제목 */}
+        <div className="flex-1 min-w-0 flex items-center gap-2">
           {notice.isPinned && (
-            <span className="inline-flex items-center gap-1 text-[10px] border border-primary-200 text-primary-600 px-1.5 py-0.5 rounded font-medium flex-shrink-0">
-              <Pin size={9} /> 고정
-            </span>
+            <span className="text-[10px] font-semibold text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded-full flex-shrink-0">고정</span>
           )}
           <span className="text-sm font-semibold text-gray-800 truncate">{notice.title}</span>
-          {!expanded && (
-            <span className="text-xs text-gray-400 truncate hidden sm:block">
-              — {notice.createdBy.name} · {formatRelativeTime(notice.createdAt)}
-            </span>
-          )}
         </div>
-        {isAdmin && (
-          <div
-            className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={onEdit}
-              className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-            >
-              <Pencil size={13} />
-            </button>
-            <button
-              onClick={onDelete}
-              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-            >
-              <Trash2 size={13} />
-            </button>
-          </div>
-        )}
+
+        {/* 우측: 작성자·시간 + 액션 + 화살표 */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="text-[11px] text-gray-400 hidden sm:block whitespace-nowrap">{notice.createdBy.name}</span>
+          <span className="text-[11px] text-gray-300 whitespace-nowrap">{formatRelativeTime(notice.createdAt)}</span>
+          {isAdmin && (
+            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all" onClick={(e) => e.stopPropagation()}>
+              <button onClick={onEdit} className="p-1.5 text-gray-300 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-colors">
+                <Pencil size={12} />
+              </button>
+              <button onClick={onDelete} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                <Trash2 size={12} />
+              </button>
+            </div>
+          )}
+          <ChevronDown size={14} className={cn('text-gray-300 transition-transform duration-200', expanded && 'rotate-180')} />
+        </div>
       </button>
 
-      {/* 펼쳐진 본문 — 배경색 적용 */}
+      {/* 펼쳐진 본문 */}
       {expanded && (
-        <div className="bg-gray-50 border-t border-gray-100 px-5 py-4">
-          <p className="text-xs text-gray-400 mb-3">
+        <div className="border-t border-gray-100 px-5 pb-4 pt-3 bg-gray-50">
+          <p className="text-[11px] text-gray-500 mb-2.5">
             {notice.createdBy.name} · {formatDate(notice.createdAt)} 작성
             {notice.updatedAt !== notice.createdAt && ` · ${formatRelativeTime(notice.updatedAt)} 수정`}
           </p>
-          <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{notice.content}</p>
+          <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{notice.content}</p>
         </div>
       )}
     </div>
