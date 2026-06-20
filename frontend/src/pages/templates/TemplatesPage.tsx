@@ -1,7 +1,7 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Plus, FileText, Pencil, Trash2, X, Paperclip, Download, Layers, Search,
+  Plus, FileText, Pencil, Trash2, X, Paperclip, Download, Layers, Search, ChevronDown, Check,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { templatesApi, type TemplateInput } from '../../api/templates';
@@ -14,6 +14,78 @@ import { formatDate, formatFileSize, cn } from '../../lib/utils';
 const PRESET_PHASES = ['기획', '설계', '개발', '테스트', '배포', '운영'];
 
 const emptyForm = (): TemplateInput => ({ title: '', phase: '', description: '', content: '' });
+
+// 단계 선택 콤보박스 — 기존/프리셋 단계 목록 + 새 단계 직접 입력
+function PhaseSelect({ value, phases, onChange }: {
+  value: string;
+  phases: string[];
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [open]);
+
+  const q = value.trim().toLowerCase();
+  const matches = phases.filter((p) => p.toLowerCase().includes(q));
+  const isNew = value.trim() !== '' && !phases.some((p) => p.toLowerCase() === q);
+
+  return (
+    <div className="relative" ref={ref}>
+      <div className="relative">
+        <input
+          value={value}
+          onChange={(e) => { onChange(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          placeholder="단계 선택 또는 입력"
+          className="w-full text-sm border border-gray-300 rounded-lg pl-3 pr-8 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => setOpen((v) => !v)}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+        >
+          <ChevronDown size={15} className={cn('transition-transform', open && 'rotate-180')} />
+        </button>
+      </div>
+
+      {open && (matches.length > 0 || isNew) && (
+        <div className="absolute z-10 mt-1 w-full bg-white rounded-xl shadow-xl border border-gray-200 py-1 max-h-56 overflow-y-auto">
+          {matches.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => { onChange(p); setOpen(false); }}
+              className="w-full flex items-center justify-between px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <Layers size={13} className="text-indigo-400" /> {p}
+              </span>
+              {value.trim().toLowerCase() === p.toLowerCase() && <Check size={14} className="text-indigo-600" />}
+            </button>
+          ))}
+          {isNew && (
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50 transition-colors border-t border-gray-100"
+            >
+              <Plus size={13} /> 새 단계 "<span className="font-semibold">{value.trim()}</span>" 추가
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function TemplatesPage() {
   const qc = useQueryClient();
@@ -258,16 +330,11 @@ export function TemplatesPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">단계 *</label>
-                  <input
-                    list="phase-options"
+                  <PhaseSelect
                     value={form.phase}
-                    onChange={(e) => setForm({ ...form, phase: e.target.value })}
-                    placeholder="기획"
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    phases={allPhases}
+                    onChange={(v) => setForm({ ...form, phase: v })}
                   />
-                  <datalist id="phase-options">
-                    {allPhases.map((p) => <option key={p} value={p} />)}
-                  </datalist>
                 </div>
               </div>
 
