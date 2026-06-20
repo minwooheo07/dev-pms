@@ -18,6 +18,8 @@ export const tasksApi = {
     api.patch<Task>(`/projects/${projectId}/tasks/${taskId}`, data).then((r) => r.data),
   move: (projectId: string, taskId: string, stepId: string | null, order: number) =>
     api.patch<Task>(`/projects/${projectId}/tasks/${taskId}/move`, { stepId, order }).then((r) => r.data),
+  reorderGantt: (projectId: string, taskIds: string[]) =>
+    api.patch(`/projects/${projectId}/tasks/reorder`, { taskIds }).then((r) => r.data),
   delete: (projectId: string, taskId: string) =>
     api.delete(`/projects/${projectId}/tasks/${taskId}`).then((r) => r.data),
 };

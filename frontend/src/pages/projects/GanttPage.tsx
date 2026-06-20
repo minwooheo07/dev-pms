@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronRight, Calendar } from 'lucide-react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { ChevronRight, Calendar, GripVertical } from 'lucide-react';
 import { tasksApi } from '../../api/tasks';
 import { projectsApi } from '../../api/projects';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
@@ -78,6 +78,30 @@ export function GanttPage() {
     enabled: !!projectId,
   });
 
+  // 드래그 정렬용 로컬 순서 (서버 데이터와 동기화)
+  const [ordered, setOrdered] = useState<Task[]>([]);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
+  useEffect(() => { if (tasks) setOrdered(tasks); }, [tasks]);
+
+  const reorder = useMutation({
+    mutationFn: (taskIds: string[]) => tasksApi.reorderGantt(projectId!, taskIds),
+    onError: () => qc.invalidateQueries({ queryKey: ['gantt', projectId] }),
+  });
+
+  const handleDrop = () => {
+    if (dragIndex === null || overIndex === null || dragIndex === overIndex) {
+      setDragIndex(null); setOverIndex(null);
+      return;
+    }
+    const next = [...ordered];
+    const [moved] = next.splice(dragIndex, 1);
+    next.splice(overIndex, 0, moved);
+    setOrdered(next);
+    reorder.mutate(next.map((t) => t.id));
+    setDragIndex(null); setOverIndex(null);
+  };
+
   const openTaskModal = useUiStore((s) => s.openTaskModal);
 
   const today = startOfDay(new Date());
@@ -135,12 +159,28 @@ export function GanttPage() {
                 <span className="text-xs font-semibold text-gray-500">태스크</span>
               </div>
               <div>
-                {tasks?.map((task) => (
+                {ordered.map((task, idx) => (
                   <div
                     key={task.id}
-                    className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 h-11 hover:bg-gray-50 cursor-pointer"
+                    draggable
+                    onDragStart={() => setDragIndex(idx)}
+                    onDragOver={(e) => { e.preventDefault(); if (overIndex !== idx) setOverIndex(idx); }}
+                    onDrop={handleDrop}
+                    onDragEnd={() => { setDragIndex(null); setOverIndex(null); }}
+                    className={cn(
+                      'group flex items-center gap-1.5 px-2 py-2.5 border-b border-gray-100 h-11 hover:bg-gray-50 cursor-pointer transition-colors',
+                      dragIndex === idx && 'opacity-40',
+                      overIndex === idx && dragIndex !== idx && 'bg-primary-50 border-t-2 border-t-primary-400',
+                    )}
                     onClick={() => openTaskModal(task.id)}
                   >
+                    <span
+                      className="flex-shrink-0 text-gray-300 group-hover:text-gray-400 cursor-grab active:cursor-grabbing"
+                      onClick={(e) => e.stopPropagation()}
+                      title="드래그하여 순서 변경"
+                    >
+                      <GripVertical size={14} />
+                    </span>
                     <StatusBadge status={task.status} />
                     <span className="text-sm text-gray-800 truncate flex-1">{task.title}</span>
                     <div className="flex -space-x-1 flex-shrink-0">
@@ -191,7 +231,7 @@ export function GanttPage() {
                 </div>
 
                 {/* Task rows */}
-                {tasks?.map((task) => {
+                {ordered.map((task) => {
                   const todayOffset = differenceInDays(today, timelineStart);
                   return (
                     <div
