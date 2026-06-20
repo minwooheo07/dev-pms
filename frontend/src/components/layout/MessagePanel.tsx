@@ -218,16 +218,16 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                 <ChevronLeft size={18} />
               </button>
             )}
-            <MessageSquare size={15} className="text-white/80" />
-            <h2 className="text-sm font-bold text-white">{headerTitle}</h2>
+            <MessageSquare size={17} className="text-white/80" />
+            <h2 className="text-base font-bold text-white">{headerTitle}</h2>
           </div>
           <div className="flex items-center gap-1">
             {view === 'list' && (
               <button
                 onClick={() => setView('new')}
-                className="flex items-center gap-1 text-xs font-medium text-white/90 hover:bg-white/20 px-2.5 py-1.5 rounded-lg transition-colors"
+                className="flex items-center gap-1 text-[11px] font-bold text-indigo-600 bg-white hover:bg-white/90 px-2.5 py-1 rounded-full shadow-sm transition-colors"
               >
-                <Plus size={13} /> 새 멘션
+                <Plus size={11} strokeWidth={2.5} /> 새 멘션
               </button>
             )}
             <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/20 text-white/80 transition-colors">
