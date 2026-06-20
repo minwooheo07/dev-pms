@@ -344,7 +344,7 @@ export function DashboardPage() {
   const taskRows = [...taskMap.values()];
 
   return (
-    <div className="min-h-full relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 40%, #fff1f2 100%)' }}>
+    <div className="min-h-full relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 60%, #f8fafc 100%)' }}>
       {/* 배경 블롭 — 애니메이션 */}
       <style>{`
         @keyframes blob-drift {
