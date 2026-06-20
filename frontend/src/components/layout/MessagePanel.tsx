@@ -136,7 +136,8 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
         qc.invalidateQueries({ queryKey: ['thread', data.senderId] });
       }
     };
-    es.onerror = () => es.close();
+    // 연결이 끊겨도 닫지 않음 → EventSource 자동 재연결 유지
+    es.onerror = () => {};
     return () => es.close();
   }, [me, qc]);
 

@@ -62,7 +62,8 @@ export function MessagesPage() {
         qc.invalidateQueries({ queryKey: ['thread', currentId] });
       }
     };
-    es.onerror = () => es.close();
+    // 연결이 끊겨도 닫지 않음 → EventSource 자동 재연결 유지
+    es.onerror = () => {};
     return () => es.close();
   }, [me, qc]); // activeUserId 제거 → SSE 연결 재맺기 없음
 

@@ -150,7 +150,8 @@ export function Header() {
       // 메시지 도착 시 멘션 알림도 즉시 체크
       qc.invalidateQueries({ queryKey: ['notifications', 'mention-watch'] });
     };
-    es.onerror = () => es.close();
+    // 연결이 끊겨도 닫지 않음 → EventSource 자동 재연결 유지 (배포/일시 끊김 후에도 실시간 복구)
+    es.onerror = () => {};
     return () => es.close();
   }, [user, qc]);
 
