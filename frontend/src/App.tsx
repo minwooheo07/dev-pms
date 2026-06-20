@@ -14,6 +14,7 @@ import { PartnerDetailPage } from './pages/partners/PartnerDetailPage';
 import { WorkloadPage } from './pages/workload/WorkloadPage';
 import { MeetingsPage } from './pages/meetings/MeetingsPage';
 import { ProfilePage } from './pages/settings/ProfilePage';
+import { ChangePasswordPage } from './pages/settings/ChangePasswordPage';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { ProjectLayout } from './components/layout/ProjectLayout';
 import { IssuesPage } from './pages/issues/IssuesPage';
@@ -94,6 +95,7 @@ export default function App() {
           <Route path="partners" element={<PartnersPage />} />
           <Route path="partners/:partnerId" element={<PartnerDetailPage />} />
           <Route path="settings/profile" element={<ProfilePage />} />
+          <Route path="settings/password" element={<ChangePasswordPage />} />
           <Route path="admin/users" element={<AdminUsersPage />} />
           <Route path="messages" element={<MessagesPage />} />
         </Route>
