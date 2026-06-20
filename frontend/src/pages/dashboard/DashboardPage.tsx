@@ -75,14 +75,11 @@ function ProjectCard({ project, stats }: { project: Project; stats: ProjectStats
   return (
     <Link to={`/projects/${project.id}`}
       className="group relative block bg-white/90 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:shadow-[0_16px_40px_rgba(0,0,0,0.13)] hover:-translate-y-1.5 transition-all duration-300 overflow-hidden">
-      {/* 좌측 컬러 바 */}
-      <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl transition-all duration-300 group-hover:w-1.5"
-        style={{ background: `linear-gradient(to bottom, ${project.color}, ${project.color}88)` }} />
       {/* 호버 글로우 */}
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-2xl"
         style={{ background: `radial-gradient(ellipse at top left, ${project.color}0a 0%, transparent 60%)` }} />
 
-      <div className="pl-5 pr-5 pt-5 pb-5">
+      <div className="p-5">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 shadow-sm transition-transform duration-200 group-hover:scale-110"
@@ -402,7 +399,6 @@ export function DashboardPage() {
 
           {/* 이번 주 일감 */}
           <div className="lg:col-span-2 bg-white/88 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.07)] ring-1 ring-gray-900/5 overflow-hidden">
-            <div className="h-0.5 w-full" style={{ background: 'linear-gradient(90deg, #6366f1, #a78bfa, transparent)' }} />
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div>
                 <h3 className="text-base font-bold text-gray-900">이번 주 일감</h3>
@@ -449,7 +445,6 @@ export function DashboardPage() {
           <div className="flex flex-col gap-6">
             {/* 태스크 상태 */}
             <div className="bg-white/88 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.07)] ring-1 ring-gray-900/5 overflow-hidden">
-              <div className="h-0.5 w-full" style={{ background: 'linear-gradient(90deg, #10b981, #34d399, transparent)' }} />
               <div className="px-6 py-4 border-b border-gray-100">
                 <h3 className="text-base font-bold text-gray-900">태스크 현황</h3>
               </div>
@@ -464,7 +459,6 @@ export function DashboardPage() {
 
             {/* 다가오는 일정 */}
             <div className="bg-white/88 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.07)] ring-1 ring-gray-900/5 overflow-hidden flex flex-col flex-1">
-              <div className="h-0.5 w-full" style={{ background: 'linear-gradient(90deg, #f59e0b, #fbbf24, transparent)' }} />
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                 <h3 className="text-base font-bold text-gray-900">다가오는 일정</h3>
                 <Link to="/meeting-calendar" className="text-xs text-gray-400 hover:text-primary-500 transition-colors flex items-center gap-0.5">
@@ -518,7 +512,6 @@ export function DashboardPage() {
             </div>
           </div>
           <div className="bg-white/88 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.07)] ring-1 ring-gray-900/5 overflow-hidden">
-            <div className="h-0.5 w-full" style={{ background: 'linear-gradient(90deg, #ef4444, #f87171, transparent)' }} />
             <DeadlineTable taskRows={taskRows} />
           </div>
         </section>
