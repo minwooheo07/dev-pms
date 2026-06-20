@@ -139,6 +139,104 @@ function ProjectCard({ project, stats }: { project: Project; stats: ProjectStats
   );
 }
 
+// 프로젝트가 1개일 때 — 가로로 넓은 대표 카드
+function ProjectCardWide({ project, stats }: { project: Project; stats: ProjectStats | undefined }) {
+  const total = stats?.total ?? 0;
+  const done = stats?.byStatus.find(b => b.status === 'DONE')?._count ?? 0;
+  const inProgress = stats?.byStatus.find(b => b.status === 'IN_PROGRESS')?._count ?? 0;
+  const todo = stats?.byStatus.find(b => b.status === 'TODO')?._count ?? 0;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  const metrics = [
+    { label: '전체 일감', value: total, color: '#64748b' },
+    { label: '진행 중', value: inProgress, color: STATUS_HEX['IN_PROGRESS'] },
+    { label: '할 일', value: todo, color: STATUS_HEX['TODO'] ?? '#94a3b8' },
+    { label: '완료', value: done, color: STATUS_HEX['DONE'] ?? '#10b981' },
+  ];
+
+  return (
+    <Link to={`/projects/${project.id}`}
+      className="group relative block bg-white/90 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:shadow-[0_16px_40px_rgba(0,0,0,0.13)] hover:-translate-y-1 transition-all duration-300 overflow-hidden">
+      {/* 호버 글로우 */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+        style={{ background: `radial-gradient(ellipse at top left, ${project.color}0a 0%, transparent 55%)` }} />
+
+      <div className="flex flex-col lg:flex-row">
+        {/* 좌측: 프로젝트 정보 */}
+        <div className="flex-1 p-6 lg:p-7 lg:border-r border-gray-100">
+          <div className="flex items-start justify-between mb-5">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 shadow-sm transition-transform duration-200 group-hover:scale-110"
+                style={{ backgroundColor: `${project.color}15`, border: `1.5px solid ${project.color}30` }}>
+                {project.icon ?? '📁'}
+              </div>
+              <div>
+                <p className="font-bold text-lg text-gray-900 group-hover:text-primary-600 transition-colors">
+                  {project.name}
+                </p>
+                <span className={cn(
+                  'text-xs font-medium',
+                  project.status === 'ACTIVE' ? 'text-emerald-500' :
+                  project.status === 'COMPLETED' ? 'text-gray-400' : 'text-amber-500'
+                )}>
+                  {project.status === 'ACTIVE' ? '● 진행 중' : project.status === 'COMPLETED' ? '완료' : project.status}
+                </span>
+              </div>
+            </div>
+            <ArrowUpRight size={18} className="text-gray-200 group-hover:text-primary-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all flex-shrink-0 mt-1" />
+          </div>
+
+          {project.description && (
+            <p className="text-sm text-gray-500 leading-relaxed mb-5 line-clamp-2">{project.description}</p>
+          )}
+
+          {/* 진행률 */}
+          <div className="mb-5">
+            <div className="flex justify-between items-end text-xs mb-2">
+              <span className="text-gray-400">완료율</span>
+              <span className="font-bold text-2xl text-gray-900 leading-none">{pct}<span className="text-sm text-gray-400">%</span></span>
+            </div>
+            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-full rounded-full transition-all duration-700 relative overflow-hidden"
+                style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${project.color}cc, ${project.color})` }}>
+                <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              </div>
+            </div>
+          </div>
+
+          {/* 멤버 */}
+          <div className="flex items-center gap-2">
+            <div className="flex -space-x-1.5">
+              {project.members.slice(0, 6).map(m => (
+                <Avatar key={m.id} name={m.user.name} avatar={m.user.avatar} size="xs" className="ring-2 ring-white" />
+              ))}
+              {project.members.length > 6 && (
+                <div className="w-6 h-6 rounded-full bg-gray-100 ring-2 ring-white flex items-center justify-center text-[10px] text-gray-500 font-medium">
+                  +{project.members.length - 6}
+                </div>
+              )}
+            </div>
+            <span className="text-xs text-gray-400">멤버 {project.members.length}명</span>
+          </div>
+        </div>
+
+        {/* 우측: 통계 패널 */}
+        <div className="lg:w-72 flex-shrink-0 p-6 lg:p-7 bg-gray-50/50 grid grid-cols-2 gap-3 content-center">
+          {metrics.map(m => (
+            <div key={m.label} className="bg-white rounded-xl border border-gray-100 px-4 py-3.5">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: m.color }} />
+                <span className="text-[11px] text-gray-400">{m.label}</span>
+              </div>
+              <p className="text-2xl font-bold text-gray-900 tabular-nums leading-none">{m.value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 // D-day 뱃지
 function getDdayConfig(endDate: string, status: string) {
   if (status === 'DONE') return { label: '완료', bg: 'bg-emerald-50', text: 'text-emerald-600' };
@@ -386,11 +484,18 @@ export function DashboardPage() {
                 전체 보기 <ChevronRight size={14} />
               </Link>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {(projects ?? []).map((p, idx) => (
-                <ProjectCard key={p.id} project={p} stats={statsQueries[idx]?.data as ProjectStats | undefined} />
-              ))}
-            </div>
+            {(projects ?? []).length === 1 ? (
+              <ProjectCardWide project={projects![0]} stats={statsQueries[0]?.data as ProjectStats | undefined} />
+            ) : (
+              <div className={cn(
+                'grid grid-cols-1 gap-4',
+                (projects ?? []).length === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-3',
+              )}>
+                {(projects ?? []).map((p, idx) => (
+                  <ProjectCard key={p.id} project={p} stats={statsQueries[idx]?.data as ProjectStats | undefined} />
+                ))}
+              </div>
+            )}
           </section>
         )}
 
