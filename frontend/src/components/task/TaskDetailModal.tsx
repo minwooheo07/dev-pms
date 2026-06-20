@@ -7,6 +7,7 @@ import {
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import { tasksApi, commentsApi, attachmentsApi, labelsApi } from '../../api/tasks';
+import { openFileInNewTab } from '../../lib/download';
 import { activityApi, stepsApi } from '../../api/notifications';
 import { partnersApi } from '../../api/partners';
 import { usersApi } from '../../api/users';
@@ -644,9 +645,12 @@ export function TaskDetailModal() {
                       {task.attachments.map((att: any) => (
                         <div key={att.id} className="flex items-center gap-2 p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 group">
                           <Paperclip size={14} className="text-gray-400 flex-shrink-0" />
-                          <a href={att.url} target="_blank" rel="noopener noreferrer" className="flex-1 text-sm text-gray-600 hover:underline truncate">
+                          <button
+                            onClick={() => openFileInNewTab(`/attachments/${att.id}/download`)}
+                            className="flex-1 text-left text-sm text-gray-600 hover:underline truncate"
+                          >
                             {att.originalName}
-                          </a>
+                          </button>
                           <span className="text-xs text-gray-400">{formatFileSize(att.size)}</span>
                           <button
                             onClick={() => deleteAttachment.mutate(att.id)}

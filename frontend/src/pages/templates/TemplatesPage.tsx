@@ -10,6 +10,7 @@ import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { formatDate, formatFileSize, cn } from '../../lib/utils';
+import { downloadFile } from '../../lib/download';
 
 // 기본 단계 프리셋 (사용자가 자유롭게 새 단계 추가 가능)
 const PRESET_PHASES = ['기획', '설계', '개발', '테스트', '배포', '운영'];
@@ -387,13 +388,13 @@ export function TemplatesPage() {
                         <Paperclip size={13} className="text-gray-400 flex-shrink-0" />
                         <span className="text-xs text-gray-700 truncate flex-1">{f.originalName}</span>
                         <span className="text-[10px] text-gray-400 flex-shrink-0">{formatFileSize(f.size)}</span>
-                        <a
-                          href={f.url} target="_blank" rel="noreferrer" download
+                        <button
+                          onClick={() => downloadFile(`/templates/files/${f.id}/download`, f.originalName)}
                           className="p-1 text-gray-400 hover:text-indigo-600 rounded transition-colors"
                           title="다운로드"
                         >
                           <Download size={13} />
-                        </a>
+                        </button>
                         <button
                           onClick={() => deleteFile.mutate(f.id)}
                           className="p-1 text-gray-400 hover:text-red-500 rounded transition-colors"
