@@ -16,6 +16,7 @@ import {
   Trash2, MousePointer2, Hand, ZoomIn, ZoomOut, ChevronLeft, Save,
   MessageSquare, Send, X, Undo2, Redo2,
   ImageIcon, Lock, Unlock, MagnetIcon, Tag, UserPlus,
+  Table2, Plus as PlusIcon, Trash,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../../components/ui/Avatar';
@@ -266,6 +267,160 @@ function StickyNode({ id, data, selected }: any) {
   );
 }
 
+// ── 커스텀 노드: ERD 테이블 ───────────────────────
+interface ErdColumn { id: string; name: string; type: string; pk: boolean; fk: boolean; notNull: boolean; }
+function ErdTableNode({ id, data, selected }: any) {
+  const { setNodes } = useReactFlow();
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(data.label ?? 'Table');
+  const titleRef = useRef<HTMLInputElement>(null);
+  const cols: ErdColumn[] = data.columns ?? [];
+
+  useEffect(() => { if (editingTitle && titleRef.current) { titleRef.current.focus(); titleRef.current.select(); } }, [editingTitle]);
+
+  const commitTitle = () => {
+    setNodes((ns) => ns.map((n) => n.id === id ? { ...n, data: { ...n.data, label: titleDraft } } : n));
+    setEditingTitle(false);
+  };
+
+  const updateCol = (colId: string, patch: Partial<ErdColumn>) => {
+    setNodes((ns) => ns.map((n) => {
+      if (n.id !== id) return n;
+      const next = (n.data.columns as ErdColumn[]).map((c) => c.id === colId ? { ...c, ...patch } : c);
+      return { ...n, data: { ...n.data, columns: next } };
+    }));
+  };
+
+  const addCol = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newCol: ErdColumn = { id: `col-${Date.now()}`, name: 'column', type: 'VARCHAR', pk: false, fk: false, notNull: false };
+    setNodes((ns) => ns.map((n) => {
+      if (n.id !== id) return n;
+      return { ...n, data: { ...n.data, columns: [...(n.data.columns ?? []), newCol] } };
+    }));
+  };
+
+  const removeCol = (colId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setNodes((ns) => ns.map((n) => {
+      if (n.id !== id) return n;
+      return { ...n, data: { ...n.data, columns: (n.data.columns as ErdColumn[]).filter((c) => c.id !== colId) } };
+    }));
+  };
+
+  const headerColor = data.headerColor ?? '#1e293b';
+  const borderColor = data.borderColor ?? '#334155';
+
+  return (
+    <>
+      <NodeResizer isVisible={selected && !data.locked} minWidth={200} minHeight={80} handleStyle={{ width: 8, height: 8, borderRadius: 2 }} lineStyle={{ borderColor: '#6366f1', borderWidth: 1 }} />
+      <NodeHandles />
+      <div
+        className={`w-full h-full flex flex-col rounded-xl overflow-hidden shadow-lg ${selected ? 'ring-2 ring-indigo-400 ring-offset-1' : ''}`}
+        style={{ border: `2px solid ${borderColor}`, background: '#ffffff', minHeight: 80 }}
+      >
+        {/* 테이블 헤더 */}
+        <div
+          className="flex items-center justify-between px-3 py-2 flex-shrink-0"
+          style={{ background: headerColor }}
+          onDoubleClick={(e) => { if (data.locked) return; e.stopPropagation(); setTitleDraft(data.label ?? ''); setEditingTitle(true); }}
+        >
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <Table2 size={12} className="text-white/70 flex-shrink-0" />
+            {editingTitle ? (
+              <input
+                ref={titleRef}
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onBlur={commitTitle}
+                onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') commitTitle(); if (e.key === 'Escape') setEditingTitle(false); }}
+                className="nodrag nopan flex-1 min-w-0 bg-white/20 text-white text-xs font-bold outline-none rounded px-1 py-0.5"
+              />
+            ) : (
+              <span className="text-white text-xs font-bold truncate cursor-default">{data.label ?? 'Table'}</span>
+            )}
+          </div>
+          <button
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={addCol}
+            className="nodrag ml-1 flex-shrink-0 w-5 h-5 flex items-center justify-center rounded bg-white/20 hover:bg-white/30 text-white transition-colors"
+            title="컬럼 추가"
+          >
+            <PlusIcon size={11} />
+          </button>
+        </div>
+
+        {/* 컬럼 행들 */}
+        <div className="flex-1 overflow-auto bg-white">
+          {cols.length === 0 && (
+            <div className="px-3 py-2 text-[10px] text-gray-300 italic text-center">컬럼 없음 — + 버튼으로 추가</div>
+          )}
+          {cols.map((col, idx) => (
+            <div
+              key={col.id}
+              className={`group flex items-center gap-1.5 px-2 py-1 border-b border-gray-100 last:border-0 hover:bg-indigo-50/40 ${col.pk ? 'bg-amber-50/60' : col.fk ? 'bg-blue-50/40' : ''}`}
+            >
+              {/* PK/FK 뱃지 */}
+              <button
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); updateCol(col.id, { pk: !col.pk, fk: col.pk ? col.fk : false }); }}
+                className={`nodrag flex-shrink-0 w-4 h-4 rounded text-[9px] font-bold flex items-center justify-center transition-colors ${col.pk ? 'bg-amber-400 text-white' : 'bg-gray-100 text-gray-400 hover:bg-amber-200'}`}
+                title="PK 토글"
+              >PK</button>
+              <button
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); updateCol(col.id, { fk: !col.fk }); }}
+                className={`nodrag flex-shrink-0 w-4 h-4 rounded text-[9px] font-bold flex items-center justify-center transition-colors ${col.fk ? 'bg-blue-400 text-white' : 'bg-gray-100 text-gray-400 hover:bg-blue-200'}`}
+                title="FK 토글"
+              >FK</button>
+
+              {/* 컬럼명 */}
+              <input
+                value={col.name}
+                onChange={(e) => updateCol(col.id, { name: e.target.value })}
+                onMouseDown={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+                className={`nodrag nopan flex-1 min-w-0 text-[11px] bg-transparent outline-none border-b border-transparent focus:border-indigo-300 truncate ${col.pk ? 'font-bold text-amber-700' : col.fk ? 'font-semibold text-blue-700' : 'text-gray-700'}`}
+                placeholder={`col_${idx + 1}`}
+              />
+
+              {/* 타입 */}
+              <select
+                value={col.type}
+                onChange={(e) => updateCol(col.id, { type: e.target.value })}
+                onMouseDown={(e) => e.stopPropagation()}
+                className="nodrag nopan text-[10px] text-gray-400 bg-transparent outline-none border-0 cursor-pointer pr-0"
+                style={{ maxWidth: 70 }}
+              >
+                {['INT','BIGINT','VARCHAR','TEXT','BOOLEAN','DATE','DATETIME','FLOAT','JSON','UUID'].map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+
+              {/* NN 표시 */}
+              <button
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); updateCol(col.id, { notNull: !col.notNull }); }}
+                className={`nodrag flex-shrink-0 text-[9px] font-bold transition-colors ${col.notNull ? 'text-rose-500' : 'text-gray-200 hover:text-gray-400'}`}
+                title="NOT NULL 토글"
+              >NN</button>
+
+              {/* 삭제 */}
+              <button
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => removeCol(col.id, e)}
+                className="nodrag flex-shrink-0 opacity-0 group-hover:opacity-100 text-gray-300 hover:text-rose-400 transition-all"
+              >
+                <Trash size={10} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── 커스텀 노드: 이미지 ───────────────────────────
 function ImageNode({ id, data, selected }: any) {
   const { setNodes } = useReactFlow();
@@ -308,6 +463,7 @@ const nodeTypes: NodeTypes = {
   text: TextNode,
   emoji: EmojiNode,
   sticky: StickyNode,
+  erd: ErdTableNode,
   image: ImageNode,
 };
 
@@ -330,7 +486,7 @@ const BG_COLORS = [
 ];
 const STICKY_COLORS = ['#fef08a','#bbf7d0','#fde68a','#bfdbfe','#f5d0fe','#fed7aa'];
 
-type Tool = 'pan' | 'select' | 'rect' | 'circle' | 'diamond' | 'text' | 'emoji' | 'sticky' | 'image';
+type Tool = 'pan' | 'select' | 'rect' | 'circle' | 'diamond' | 'text' | 'emoji' | 'sticky' | 'erd' | 'image';
 
 const uid = () => `node-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
@@ -585,7 +741,7 @@ export function CanvasPage() {
   useEffect(() => {
     const TOOL_MAP: Record<string, Tool> = {
       h: 'pan', v: 'select', r: 'rect', c: 'circle',
-      d: 'diamond', t: 'text', n: 'sticky', i: 'image',
+      d: 'diamond', t: 'text', n: 'sticky', e: 'erd', i: 'image',
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -692,6 +848,28 @@ export function CanvasPage() {
       newNode = { id: uid(), type: 'text', position: pos, data: { label, color: '#111827', fontSize: 16 }, style: { width: 160, height: 40 } };
     } else if (tool === 'sticky') {
       newNode = { id: uid(), type: 'sticky', position: pos, data: { label, bg: stickyBg }, style: { width: 200, height: 140 } };
+    } else if (tool === 'erd') {
+      const erdColors = [
+        { header: '#1e293b', border: '#334155' },
+        { header: '#1d4ed8', border: '#1e40af' },
+        { header: '#7c3aed', border: '#6d28d9' },
+        { header: '#059669', border: '#047857' },
+        { header: '#dc2626', border: '#b91c1c' },
+        { header: '#d97706', border: '#b45309' },
+      ];
+      const ec = erdColors[selectedColor] ?? erdColors[0];
+      newNode = {
+        id: uid(), type: 'erd', position: pos,
+        data: {
+          label: label || 'Table',
+          headerColor: ec.header,
+          borderColor: ec.border,
+          columns: [
+            { id: `col-${Date.now()}-1`, name: 'id', type: 'INT', pk: true, fk: false, notNull: true },
+          ],
+        },
+        style: { width: 260, height: 'auto' },
+      };
     } else if (tool === 'image') {
       newNode = { id: uid(), type: 'image', position: pos, data: { label: '' }, style: { width: 200, height: 150 } };
     } else {
@@ -716,7 +894,7 @@ export function CanvasPage() {
       setTool('pan');
       return;
     }
-    if (tool === 'rect' || tool === 'circle' || tool === 'diamond' || tool === 'text' || tool === 'sticky') {
+    if (tool === 'rect' || tool === 'circle' || tool === 'diamond' || tool === 'text' || tool === 'sticky' || tool === 'erd') {
       setPendingNode(pos);
       setLabelInput('');
       setShowLabelModal(true);
@@ -838,6 +1016,7 @@ export function CanvasPage() {
     { id: 'diamond', icon: Diamond,   label: '마름모',  shortcut: 'D' },
     { id: 'text',    icon: Type,      label: '텍스트',  shortcut: 'T' },
     { id: 'sticky',  icon: Minus,     label: '포스트잇',shortcut: 'N' },
+    { id: 'erd',     icon: Table2,    label: 'ERD',     shortcut: 'E' },
     { id: 'image',   icon: ImageIcon, label: '이미지',  shortcut: 'I' },
   ];
 
@@ -987,6 +1166,28 @@ export function CanvasPage() {
                 key={i}
                 onClick={() => setSelectedColor(i)}
                 style={{ backgroundColor: c.bg, borderColor: c.border }}
+                className={cn('w-5 h-5 rounded border-2 transition-transform', selectedColor === i && 'scale-125 shadow')}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* ERD 헤더 색상 */}
+        {tool === 'erd' && (
+          <div className="flex items-center gap-1 ml-2">
+            <span className="text-xs text-gray-400">헤더:</span>
+            {[
+              { header: '#1e293b', border: '#334155' },
+              { header: '#1d4ed8', border: '#1e40af' },
+              { header: '#7c3aed', border: '#6d28d9' },
+              { header: '#059669', border: '#047857' },
+              { header: '#dc2626', border: '#b91c1c' },
+              { header: '#d97706', border: '#b45309' },
+            ].map((c, i) => (
+              <button
+                key={i}
+                onClick={() => setSelectedColor(i)}
+                style={{ backgroundColor: c.header, borderColor: c.border }}
                 className={cn('w-5 h-5 rounded border-2 transition-transform', selectedColor === i && 'scale-125 shadow')}
               />
             ))}
