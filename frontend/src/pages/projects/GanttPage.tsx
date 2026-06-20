@@ -63,7 +63,7 @@ export function GanttPage() {
       qc.invalidateQueries({ queryKey: ['gantt', projectId] });
       qc.invalidateQueries({ queryKey: ['project-stats', projectId] });
     };
-    es.onerror = () => es.close();
+    es.onerror = () => {};
     return () => es.close();
   }, [projectId, qc]);
 
