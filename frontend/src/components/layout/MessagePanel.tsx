@@ -207,7 +207,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
         {/* 헤더 */}
         <div
           className="flex items-center justify-between px-4 py-3.5 flex-shrink-0 z-10 relative"
-          style={{ background: 'linear-gradient(135deg, #6366f1, #818cf8)', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}
+          style={{ background: 'linear-gradient(135deg, #f85032, #e73827)', boxShadow: '0 4px 12px rgba(231,56,39,0.3)' }}
         >
           <div className="flex items-center gap-2">
             {showBack && (
@@ -225,7 +225,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
             {view === 'list' && (
               <button
                 onClick={() => setView('new')}
-                className="flex items-center gap-1 text-[11px] font-bold text-indigo-600 bg-white hover:bg-white/90 px-2.5 py-1 rounded-full shadow-sm transition-colors"
+                className="flex items-center gap-1 text-[11px] font-bold text-[#e73827] bg-white hover:bg-white/90 px-2.5 py-1 rounded-full shadow-sm transition-colors"
               >
                 <Plus size={11} strokeWidth={2.5} /> 새 멘션
               </button>
@@ -241,14 +241,14 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
           <div className="flex-1 overflow-y-auto">
             {!visibleConvs.length ? (
               <div className="flex flex-col items-center justify-center h-full text-center px-6">
-                <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center mb-3">
+                <div className="w-14 h-14 rounded-2xl bg-orange-50 flex items-center justify-center mb-3">
                   <MessageSquare size={24} className="text-gray-400" />
                 </div>
                 <p className="text-sm font-semibold text-gray-600 mb-1">대화가 없습니다</p>
                 <p className="text-xs text-gray-400 mb-4">새 멘션을 보내 대화를 시작해보세요</p>
                 <button
                   onClick={() => setView('new')}
-                  className="flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-lg transition-colors"
+                  className="flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-orange-50 hover:bg-orange-100 px-4 py-2 rounded-lg transition-colors"
                 >
                   <Plus size={13} /> 새 멘션 보내기
                 </button>
@@ -259,7 +259,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                   key={c.user.id}
                   className={cn(
                     'group flex items-center gap-3 px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer',
-                    c.unread > 0 && 'bg-indigo-50/40',
+                    c.unread > 0 && 'bg-orange-50/40',
                   )}
                   onClick={() => openChat(c.user.id)}
                 >
@@ -359,10 +359,13 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                           <Avatar name={activeUser?.name ?? ''} avatar={activeUser?.avatar} size="xs" className="flex-shrink-0 mb-0.5" />
                         )}
                         <div className={cn('max-w-[78%] group flex flex-col gap-0.5', isMine ? 'items-end' : 'items-start')}>
-                          <div className={cn(
-                            'px-3.5 py-2 rounded-2xl text-sm leading-relaxed break-words',
-                            isMine ? 'bg-indigo-600 text-white rounded-br-sm' : 'bg-gray-100 text-gray-900 rounded-bl-sm',
-                          )}>
+                          <div
+                            className={cn(
+                              'px-3.5 py-2 rounded-2xl text-sm leading-relaxed break-words',
+                              isMine ? 'text-white rounded-br-sm' : 'bg-gray-100 text-gray-900 rounded-bl-sm',
+                            )}
+                            style={isMine ? { background: 'linear-gradient(135deg, #f85032, #e73827)' } : undefined}
+                          >
                             {m.content}
                           </div>
                           <span className="text-[10px] text-gray-400 px-1 whitespace-nowrap">
@@ -378,7 +381,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
 
             {/* 입력창 */}
             <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0">
-              <div className="flex items-center gap-2 bg-gray-50 rounded-xl border border-gray-200 px-3 py-2 focus-within:border-indigo-400 focus-within:bg-white transition-colors">
+              <div className="flex items-center gap-2 bg-gray-50 rounded-xl border border-gray-200 px-3 py-2 focus-within:border-[#f85032] focus-within:bg-white transition-colors">
                 <EmojiPickerButton
                   open={emojiOpen}
                   onToggle={() => setEmojiOpen((v) => !v)}
@@ -397,7 +400,8 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
                 <button
                   onClick={handleSend}
                   disabled={!draft.trim() || sendMsg.isPending}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity flex-shrink-0"
+                  style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}
                 >
                   <Send size={13} />
                 </button>

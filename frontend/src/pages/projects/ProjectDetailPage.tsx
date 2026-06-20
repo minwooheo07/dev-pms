@@ -584,7 +584,7 @@ export function ProjectDetailPage() {
                         <button
                           onClick={() => openChat(m.user.id)}
                           className="opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 flex items-center gap-1 text-[10px] font-bold text-white px-2.5 py-1 rounded-full shadow-sm hover:shadow-md hover:brightness-105 transition-all duration-200 flex-shrink-0"
-                          style={{ background: 'linear-gradient(135deg, #6366f1, #818cf8)' }}
+                          style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}
                           title="멘션 보내기"
                         >
                           <MessageSquare size={11} strokeWidth={2.5} /> 멘션

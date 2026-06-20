@@ -113,14 +113,14 @@ export function MessagesPage() {
         <div className="px-4 pt-5 pb-4 border-b border-gray-100 flex-shrink-0 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #6366f1, #818cf8)' }}>
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
                 <MessageSquare size={13} className="text-white" />
               </div>
               <h1 className="text-base font-bold text-gray-900">멘션</h1>
             </div>
             <button
               onClick={() => { setShowPicker(true); setPickerSearch(''); }}
-              className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg transition-colors"
+              className="flex items-center gap-1 text-xs font-semibold text-[#e73827] hover:text-[#d32d1e] bg-orange-50 hover:bg-orange-100 px-2.5 py-1.5 rounded-lg transition-colors"
             >
               <Plus size={13} /> 새 멘션
             </button>
@@ -140,19 +140,19 @@ export function MessagesPage() {
                 className={cn(
                   'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors',
                   activeUserId === c.user.id
-                    ? 'bg-indigo-50 border-l-2 border-indigo-500'
+                    ? 'bg-orange-50 border-l-2 border-[#e73827]'
                     : 'hover:bg-gray-50 border-l-2 border-transparent',
                 )}
               >
                 <div className="relative flex-shrink-0">
                   <Avatar name={c.user.name} avatar={c.user.avatar} size="sm" />
                   {c.unread > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-indigo-500 rounded-full border border-white" />
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-[#e73827] rounded-full border border-white" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <span className={cn('text-sm truncate', activeUserId === c.user.id ? 'font-bold text-indigo-700' : 'font-semibold text-gray-800')}>
+                    <span className={cn('text-sm truncate', activeUserId === c.user.id ? 'font-bold text-[#e73827]' : 'font-semibold text-gray-800')}>
                       {c.user.name}
                     </span>
                     <span className="text-[10px] text-gray-400 flex-shrink-0">{formatRelativeTime(c.lastMessage.createdAt)}</span>
@@ -162,7 +162,7 @@ export function MessagesPage() {
                       {c.lastMessage.senderId === me?.id && <span className="text-gray-400">나: </span>}{c.lastMessage.content}
                     </span>
                     {c.unread > 0 && (
-                      <span className="flex-shrink-0 min-w-[18px] h-[18px] bg-indigo-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                      <span className="flex-shrink-0 min-w-[18px] h-[18px] bg-[#e73827] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
                         {c.unread > 9 ? '9+' : c.unread}
                       </span>
                     )}
@@ -221,9 +221,10 @@ export function MessagesPage() {
                           className={cn(
                             'px-3.5 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words',
                             mine
-                              ? 'bg-indigo-600 text-white rounded-br-md'
+                              ? 'text-white rounded-br-md'
                               : 'bg-white text-gray-800 border border-gray-200 rounded-bl-md',
                           )}
+                          style={mine ? { background: 'linear-gradient(135deg, #f85032, #e73827)' } : undefined}
                         >
                           {m.content}
                         </div>
@@ -254,13 +255,13 @@ export function MessagesPage() {
                   }}
                   placeholder="메시지를 입력하세요... (Enter 전송, Shift+Enter 줄바꿈)"
                   rows={1}
-                  className="flex-1 resize-none text-sm border border-gray-300 rounded-xl px-3.5 py-2.5 max-h-32 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="flex-1 resize-none text-sm border border-gray-300 rounded-xl px-3.5 py-2.5 max-h-32 focus:outline-none focus:ring-2 focus:ring-[#f85032]"
                 />
                 <button
                   onClick={handleSend}
                   disabled={!draft.trim() || sendMsg.isPending}
                   className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white rounded-xl disabled:opacity-40 transition-opacity"
-                  style={{ background: 'linear-gradient(135deg, #6366f1, #818cf8)' }}
+                  style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}
                 >
                   <Send size={16} />
                 </button>
@@ -287,7 +288,7 @@ export function MessagesPage() {
                   value={pickerSearch}
                   onChange={(e) => setPickerSearch(e.target.value)}
                   placeholder="이름으로 검색..."
-                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#f85032]"
                 />
               </div>
             </div>
