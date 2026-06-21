@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, Trash2, AlertTriangle, X, Check } from 'lucide-react';
+import { Plus, Trash2, AlertTriangle, X, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { issuesApi } from '../../api/issues';
 import { projectsApi } from '../../api/projects';
@@ -325,7 +325,7 @@ export function IssuesPage() {
                 const risk = RISK_CONFIG[issue.riskLevel];
                 const status = STATUS_CONFIG[issue.status];
                 return (
-                  <tr key={issue.id} className="hover:bg-gray-50/60 transition-colors group">
+                  <tr key={issue.id} onClick={() => openEdit(issue)} className="hover:bg-gray-50/60 transition-colors group cursor-pointer">
                     <td className="px-5 py-3.5">
                       <p className="text-sm font-medium text-gray-900">{issue.title}</p>
                       {issue.description && (
@@ -375,14 +375,8 @@ export function IssuesPage() {
                     <td className="px-4 py-3.5">
                       <span className="text-xs text-gray-400">{formatRelativeTime(issue.createdAt)}</span>
                     </td>
-                    <td className="px-4 py-3.5">
+                    <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
                       <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                        <button
-                          onClick={() => openEdit(issue)}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-primary-50 transition-colors"
-                        >
-                          <Pencil size={13} />
-                        </button>
                         <button
                           onClick={() => {
                             if (confirm(`"${issue.title}" 이슈를 삭제하시겠습니까?`)) {
@@ -390,6 +384,7 @@ export function IssuesPage() {
                             }
                           }}
                           className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                          title="삭제"
                         >
                           <Trash2 size={13} />
                         </button>
