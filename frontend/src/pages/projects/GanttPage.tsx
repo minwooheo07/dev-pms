@@ -66,7 +66,7 @@ function GanttIssuesBadge({ task, projectId }: { task: Task; projectId: string }
         ref={badgeRef}
         onClick={openPopover}
         title="연결된 이슈 보기"
-        className="flex-shrink-0 flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm transition-all hover:shadow-md active:scale-95"
+        className="flex-shrink-0 flex items-center gap-1 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full transition-all active:scale-95"
       >
         <AlertTriangle size={9} strokeWidth={2.5} />
         이슈 {task._count.issues}
