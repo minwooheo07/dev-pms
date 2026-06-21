@@ -476,7 +476,7 @@ export function ProjectDetailPage() {
                         </div>
                       </button>
                       {isOpen && n.content && (
-                        <div className="border-t border-amber-100 px-4 py-3 bg-white/60">
+                        <div className="border-t border-amber-200 px-4 py-3 bg-white">
                           <p className="text-[10px] text-gray-400 mb-2 font-medium">{n.createdBy.name} · {formatDate(n.createdAt)}</p>
                           <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{n.content}</p>
                         </div>
