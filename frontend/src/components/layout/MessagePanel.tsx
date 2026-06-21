@@ -213,7 +213,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
   };
 
   const openChat = (userId: string) => {
-    setActiveUserId(userId); setView('chat'); setPickerSearch('');
+    setActiveUserId(userId); setView('chat'); setTab('dm'); setPickerSearch('');
     setTimeout(() => { qc.invalidateQueries({ queryKey: ['messages', 'unread'] }); qc.invalidateQueries({ queryKey: ['conversations'] }); }, 500);
   };
   const openRoom = (roomId: string) => { setActiveRoomId(roomId); setView('room'); };
