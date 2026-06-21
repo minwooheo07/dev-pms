@@ -7,7 +7,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('accessToken');
+  const token = sessionStorage.getItem('accessToken') ?? localStorage.getItem('accessToken');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -32,7 +32,7 @@ api.interceptors.response.use(
     // 로그인 요청 자체의 401은 인증 갱신 로직 건너뜀 (틀린 비밀번호 등)
     const isAuthEndpoint = original.url?.includes('/auth/login') || original.url?.includes('/auth/register');
     if (error.response?.status === 401 && !original._retry && !isAuthEndpoint) {
-      const refreshToken = localStorage.getItem('refreshToken');
+      const refreshToken = sessionStorage.getItem('refreshToken') ?? localStorage.getItem('refreshToken');
       if (!refreshToken) {
         useAuthStore.getState().logout();
         window.location.href = '/login';
@@ -54,8 +54,14 @@ api.interceptors.response.use(
 
       try {
         const { data } = await axios.post('/api/auth/refresh', { refreshToken });
-        localStorage.setItem('accessToken', data.accessToken);
-        localStorage.setItem('refreshToken', data.refreshToken);
+        const keep = localStorage.getItem('pms_keep') === '1';
+        if (keep) {
+          localStorage.setItem('accessToken', data.accessToken);
+          localStorage.setItem('refreshToken', data.refreshToken);
+        } else {
+          sessionStorage.setItem('accessToken', data.accessToken);
+          sessionStorage.setItem('refreshToken', data.refreshToken);
+        }
         api.defaults.headers.common.Authorization = `Bearer ${data.accessToken}`;
         processQueue(null, data.accessToken);
         original.headers.Authorization = `Bearer ${data.accessToken}`;

@@ -46,6 +46,7 @@ type FindTab = 'id' | 'password';
 export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [keepLoggedIn, setKeepLoggedIn] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isPendingError, setIsPendingError] = useState(false);
   const { setAuth } = useAuthStore();
@@ -64,7 +65,7 @@ export function LoginPage() {
     mutationFn: authApi.login,
     onSuccess: (data) => {
       setLoginError(null);
-      setAuth(data.user, data.accessToken, data.refreshToken);
+      setAuth(data.user, data.accessToken, data.refreshToken, keepLoggedIn);
       navigate('/dashboard');
       toast.success(`안녕하세요, ${data.user.name}님!`);
     },
@@ -157,6 +158,16 @@ export function LoginPage() {
                 </button>
               </div>
             )}
+
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={keepLoggedIn}
+                onChange={(e) => setKeepLoggedIn(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-[#e73827] accent-[#e73827] cursor-pointer"
+              />
+              <span className="text-sm text-gray-500">로그인 유지</span>
+            </label>
 
             <Button
               type="submit"
