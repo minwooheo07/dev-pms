@@ -30,4 +30,13 @@ export const usersApi = {
 
   getOnlineIds: () =>
     api.get<string[]>('/users/online').then((r) => r.data),
+
+  getPending: () =>
+    api.get<User[]>('/users/pending').then((r) => r.data),
+
+  approveUser: (id: string) =>
+    api.patch<User>(`/users/${id}/approve`).then((r) => r.data),
+
+  rejectUser: (id: string) =>
+    api.delete(`/users/${id}/reject`).then((r) => r.data),
 };

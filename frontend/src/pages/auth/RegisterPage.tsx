@@ -43,15 +43,18 @@ export function RegisterPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { setAuth } = useAuthStore();
+  const [pending, setPending] = useState(false);
   const navigate = useNavigate();
 
   const register = useMutation({
     mutationFn: authApi.register,
-    onSuccess: (data) => {
-      setAuth(data.user, data.accessToken, data.refreshToken);
-      navigate('/dashboard');
-      toast.success('환영합니다! 계정이 생성되었습니다.');
+    onSuccess: (data: any) => {
+      if (data.pending) {
+        setPending(true);
+      } else {
+        navigate('/login');
+        toast.success('계정이 생성되었습니다. 로그인해주세요.');
+      }
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.message ?? '회원가입에 실패했습니다.');
@@ -66,6 +69,33 @@ export function RegisterPage() {
     }
     register.mutate({ name, email, password });
   };
+
+  if (pending) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-primary-950 to-gray-950 flex items-center justify-center p-4">
+        <div className="w-full max-w-sm">
+          <div className="flex items-center justify-center gap-4 mb-8">
+            <Logo size={44} />
+            <span className="text-3xl font-bold text-white">L.PMS</span>
+          </div>
+          <div className="bg-white rounded-2xl shadow-2xl p-8 text-center">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+                <path d="M12 8v4M12 16h.01"/>
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">승인 대기 중</h2>
+            <p className="text-sm text-gray-500 mb-1">회원가입이 완료되었습니다.</p>
+            <p className="text-sm text-gray-500 mb-6">관리자 승인 후 로그인하실 수 있습니다.</p>
+            <Link to="/login" className="block w-full py-2.5 text-sm font-semibold text-white rounded-xl text-center transition-opacity hover:opacity-90" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
+              로그인 페이지로
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-primary-950 to-gray-950 flex items-center justify-center p-4">

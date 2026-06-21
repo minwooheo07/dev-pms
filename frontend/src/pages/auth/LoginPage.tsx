@@ -47,6 +47,7 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [isPendingError, setIsPendingError] = useState(false);
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
 
@@ -69,8 +70,10 @@ export function LoginPage() {
     },
     onError: (err: any) => {
       const msg = err.response?.data?.message ?? '로그인에 실패했습니다.';
+      const isPending = err.response?.status === 403 && msg.includes('승인 대기');
+      setIsPendingError(isPending);
       setLoginError(msg);
-      setPassword('');
+      if (!isPending) setPassword('');
     },
   });
 
@@ -142,9 +145,9 @@ export function LoginPage() {
 
             {/* 에러 팝업 */}
             {loginError && (
-              <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-red-50 border border-red-200 animate-slide-up">
-                <AlertCircle size={15} className="text-red-500 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-700 font-medium flex-1">{loginError}</p>
+              <div className={`flex items-start gap-2.5 px-3.5 py-3 rounded-xl border animate-slide-up ${isPendingError ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'}`}>
+                <AlertCircle size={15} className={`flex-shrink-0 mt-0.5 ${isPendingError ? 'text-amber-500' : 'text-red-500'}`} />
+                <p className={`text-sm font-medium flex-1 ${isPendingError ? 'text-amber-700' : 'text-red-700'}`}>{loginError}</p>
                 <button
                   type="button"
                   onClick={() => setLoginError(null)}
