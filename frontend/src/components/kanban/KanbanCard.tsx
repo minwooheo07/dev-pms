@@ -89,13 +89,12 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
         {...listeners}
         onClick={() => openTaskModal(task.id)}
         className={cn(
-          'rounded-xl border bg-white cursor-pointer select-none relative',
-          'shadow-sm hover:shadow-md transition-all duration-200',
+          'rounded-xl border bg-white p-3 cursor-pointer select-none relative',
+          'transition-all duration-200',
           'outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
-          // 이슈 있으면 왼쪽 빨간 액센트 border
           hasIssue
-            ? 'border-gray-200 border-l-[3px] border-l-red-400 pl-[11px] pr-3 pt-3 pb-3'
-            : 'border-gray-200 hover:border-gray-300 p-3',
+            ? 'border-red-200 animate-issue-glow hover:border-red-300'
+            : 'border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300',
           isDragging && 'opacity-40',
           overlay && 'shadow-xl rotate-1',
         )}
