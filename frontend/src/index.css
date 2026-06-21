@@ -106,10 +106,3 @@
   100% { transform: translateX(200%); }
 }
 
-@keyframes issue-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); background-color: rgba(254, 242, 242, 0.7); }
-  50%       { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15); background-color: rgba(254, 226, 226, 0.85); }
-}
-.animate-issue-pulse {
-  animation: issue-pulse 2.5s ease-in-out infinite;
-}
