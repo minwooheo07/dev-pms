@@ -425,8 +425,8 @@ export function ProjectDetailPage() {
             {/* 헤더 */}
             <div className="flex items-center justify-between px-5 py-4">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center shadow-md flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
-                  <Megaphone size={14} className="text-white" />
+                <div className="w-6 h-6 rounded-md flex items-center justify-center shadow-sm flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
+                  <Megaphone size={12} className="text-white" />
                 </div>
                 <div>
                   <span className="text-sm font-bold text-gray-800">공지사항</span>
