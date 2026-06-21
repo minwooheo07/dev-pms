@@ -793,7 +793,7 @@ export function ProjectDetailPage() {
                 <h2 className="text-base font-bold text-gray-700">팀 멤버 관리</h2>
                 <p className="text-xs text-gray-400 mt-0.5">멤버를 추가하거나 역할을 변경할 수 있습니다</p>
               </div>
-              <button onClick={() => setMemberOpen(false)} className="text-white/70 hover:text-white p-1">
+              <button onClick={() => setMemberOpen(false)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
                 <X size={18} />
               </button>
             </div>
