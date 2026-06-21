@@ -27,6 +27,7 @@ export function Header() {
   const { logout, refreshToken } = useAuthStore();
   const [notifOpen, setNotifOpen] = useState(false);
   const [msgOpen, setMsgOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   // 스토어에서 패널 오픈 요청 감지
   useEffect(() => {
@@ -38,6 +39,15 @@ export function Header() {
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, []);
 
   useEffect(() => {
     function handle(e: MouseEvent) {
@@ -322,7 +332,7 @@ export function Header() {
         />
 
         {/* Notifications */}
-        <div className="relative">
+        <div className="relative" ref={notifRef}>
           <button
             onClick={() => { setNotifOpen(!notifOpen); setMsgOpen(false); }}
             className="group relative h-8 flex items-center gap-1 px-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
@@ -337,9 +347,7 @@ export function Header() {
           </button>
 
           {notifOpen && (
-            <>
-              <div className="fixed inset-0 z-30" onClick={() => setNotifOpen(false)} />
-              <div className="absolute right-0 top-10 z-40 w-80 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+            <div className="absolute right-0 top-10 z-40 w-80 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                   <div className="flex items-center gap-2">
                     <h3 className="font-semibold text-sm text-gray-800">알림</h3>
@@ -392,8 +400,7 @@ export function Header() {
                     ))
                   )}
                 </div>
-              </div>
-            </>
+            </div>
           )}
         </div>
 
