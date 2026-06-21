@@ -4,8 +4,19 @@ import type { User } from '../types';
 
 // keepLoggedIn 여부에 따라 localStorage / sessionStorage를 선택하는 커스텀 스토리지
 const rawStorage = {
-  getItem: (name: string): string | null =>
-    sessionStorage.getItem(name) ?? localStorage.getItem(name),
+  getItem: (name: string): string | null => {
+    const raw = sessionStorage.getItem(name) ?? localStorage.getItem(name);
+    if (raw === null) return null;
+    // 과거 잘못된 배포로 "[object Object]" 등 깨진 값이 저장된 경우 방어
+    try {
+      JSON.parse(raw);
+      return raw;
+    } catch {
+      localStorage.removeItem(name);
+      sessionStorage.removeItem(name);
+      return null;
+    }
+  },
   setItem: (name: string, value: string): void => {
     const keep = localStorage.getItem('pms_keep') === '1';
     // 기존에 localStorage에 데이터가 있으면(배포 전 로그인 사용자) 영구 세션으로 유지
