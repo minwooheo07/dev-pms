@@ -46,7 +46,7 @@ type FindTab = 'id' | 'password';
 export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [keepLoggedIn, setKeepLoggedIn] = useState(false);
+  const [keepLoggedIn, setKeepLoggedIn] = useState(true);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isPendingError, setIsPendingError] = useState(false);
   const { setAuth } = useAuthStore();

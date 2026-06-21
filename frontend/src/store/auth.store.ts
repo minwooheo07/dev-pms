@@ -1,12 +1,12 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { User } from '../types';
 
 // keepLoggedIn 여부에 따라 localStorage / sessionStorage를 선택하는 커스텀 스토리지
-const smartStorage = {
-  getItem: (name: string) =>
+const rawStorage = {
+  getItem: (name: string): string | null =>
     sessionStorage.getItem(name) ?? localStorage.getItem(name),
-  setItem: (name: string, value: string) => {
+  setItem: (name: string, value: string): void => {
     const keep = localStorage.getItem('pms_keep') === '1';
     // 기존에 localStorage에 데이터가 있으면(배포 전 로그인 사용자) 영구 세션으로 유지
     const hasLegacy = !keep && localStorage.getItem(name) !== null;
@@ -19,7 +19,7 @@ const smartStorage = {
       localStorage.removeItem(name);
     }
   },
-  removeItem: (name: string) => {
+  removeItem: (name: string): void => {
     localStorage.removeItem(name);
     sessionStorage.removeItem(name);
   },
@@ -44,7 +44,7 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       refreshToken: null,
       _hasHydrated: false,
-      setAuth: (user, accessToken, refreshToken, keepLoggedIn = false) => {
+      setAuth: (user, accessToken, refreshToken, keepLoggedIn = true) => {
         if (keepLoggedIn) {
           localStorage.setItem('pms_keep', '1');
           localStorage.setItem('accessToken', accessToken);
@@ -74,7 +74,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
-      storage: smartStorage,
+      storage: createJSONStorage(() => rawStorage),
       partialize: (s) => ({ user: s.user, accessToken: s.accessToken, refreshToken: s.refreshToken }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
