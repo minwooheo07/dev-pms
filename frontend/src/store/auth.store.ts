@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { persist } from 'zustand/middleware';
 import type { User } from '../types';
 
 // keepLoggedIn 여부에 따라 localStorage / sessionStorage를 선택하는 커스텀 스토리지
@@ -74,7 +74,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
-      storage: createJSONStorage(() => rawStorage),
+      storage: rawStorage,
       partialize: (s) => ({ user: s.user, accessToken: s.accessToken, refreshToken: s.refreshToken }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
