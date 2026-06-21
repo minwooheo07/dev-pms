@@ -52,6 +52,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
   const [renameTarget, setRenameTarget] = useState<{ id: string; name: string } | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const ctxRef = useRef<HTMLDivElement>(null);
+  const [memberPopup, setMemberPopup] = useState<any | null>(null);
 
   // DM 컨텍스트 메뉴
   const [dmCtxMenu, setDmCtxMenu] = useState<{ conv: any; x: number; y: number } | null>(null);
@@ -795,6 +796,55 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
         </>
       )}
 
+      {/* 그룹채팅 멤버 확인 팝업 */}
+      {memberPopup && (
+        <>
+          <div className="fixed inset-0 z-[9999] bg-black/30 backdrop-blur-[2px]" onClick={() => setMemberPopup(null)} />
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center pointer-events-none">
+            <div className="bg-white rounded-2xl shadow-2xl w-72 overflow-hidden pointer-events-auto animate-slide-up">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #f85032, #e73827)' }}>
+                    <Users size={12} className="text-white" />
+                  </div>
+                  <span className="text-sm font-bold text-gray-800">{memberPopup.name}</span>
+                  <span className="text-[11px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{memberPopup.members.length}명</span>
+                </div>
+                <button onClick={() => setMemberPopup(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                  <X size={14} />
+                </button>
+              </div>
+              <div className="max-h-72 overflow-y-auto py-2">
+                {memberPopup.members.map((m: any) => (
+                  <div key={m.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors">
+                    <div className="relative flex-shrink-0">
+                      <Avatar name={m.name} avatar={m.avatar} size="sm" />
+                      <span className={cn(
+                        'absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-white rounded-full',
+                        onlineSet.has(m.id) ? 'bg-green-400' : 'bg-gray-300',
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-700 truncate">{m.name}</p>
+                      {m.position && <p className="text-[11px] text-gray-400 truncate">{m.position}</p>}
+                    </div>
+                    {m.id !== me?.id && (
+                      <button
+                        onClick={() => { openChat(m.id); setMemberPopup(null); }}
+                        className="flex-shrink-0 p-1.5 rounded-lg text-gray-300 hover:text-[#e73827] hover:bg-red-50 transition-colors"
+                        title="채팅 보내기"
+                      >
+                        <MessageSquare size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* DM 우클릭 컨텍스트 메뉴 */}
       {dmCtxMenu && (
         <div
@@ -835,7 +885,7 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
           </button>
           <button
             className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            onClick={() => { openRoom(ctxMenu.room.id); setCtxMenu(null); }}
+            onClick={() => { setMemberPopup(ctxMenu.room); setCtxMenu(null); }}
           >
             <Eye size={14} className="text-gray-400" /> 멤버 확인
           </button>
