@@ -453,8 +453,9 @@ export function DashboardPage() {
     }
   });
   const taskRows = [...taskMap.values()];
-  // 잔여 일감: 내 워크로그 중 완료(DONE)·취소(CANCELLED)되지 않은 일감 수
-  const remainingLogs = taskRows.filter((r) => r.status !== 'DONE' && r.status !== 'CANCELLED').length;
+  // 잔여 일감: 워크로그 중 완료·사용자확인·배포 단계가 아닌(=접수·개발) 건수
+  const DONE_STAGES = ['COMPLETED', 'USER_CONFIRMED', 'DEPLOYED'];
+  const remainingLogs = (myWorklogs ?? []).filter((l: any) => !DONE_STAGES.includes(l.stage)).length;
 
   return (
     <div className="min-h-full relative overflow-hidden" style={{ background: 'linear-gradient(180deg, #f1f5f9 0%, #ffffff 55%, #f8fafc 100%)' }}>
