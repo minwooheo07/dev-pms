@@ -72,6 +72,7 @@ export function IssueEditModal({ projectId, issue, onClose }: Props) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['issues', projectId] });
       qc.invalidateQueries({ queryKey: ['kanban', projectId] });
+      qc.invalidateQueries({ queryKey: ['gantt', projectId] });
       toast.success('이슈가 수정되었습니다.');
       onClose();
     },

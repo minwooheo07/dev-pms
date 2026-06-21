@@ -101,7 +101,7 @@ function GanttIssuesBadge({ task, projectId }: { task: Task; projectId: string }
                 <button
                   key={issue.id}
                   className="w-full text-left px-3 py-2.5 hover:bg-primary-50 transition-colors group/item"
-                  onClick={(e) => { e.stopPropagation(); setOpen(false); setEditingIssue(issue); }}
+                  onClick={(e) => { e.stopPropagation(); setOpen(false); setEditingIssue({ ...issue, taskId: issue.taskId ?? task.id }); }}
                 >
                   <div className="flex items-start gap-2">
                     <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5', risk.dot)} />
