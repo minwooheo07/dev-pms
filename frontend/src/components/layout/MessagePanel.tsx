@@ -126,10 +126,17 @@ export function MessagePanel({ open, onClose, initialUserId }: Props) {
       const data = JSON.parse(e.data ?? '{}');
       qc.invalidateQueries({ queryKey: ['rooms'] });
       if (data.roomId) qc.invalidateQueries({ queryKey: ['room-messages', data.roomId] });
+      // 내가 보낸 메시지는 토스트 제외, 패널이 닫혔거나 다른 방/뷰 보는 중이면 토스트
+      if (data.senderId && data.senderId !== me.id) {
+        const isViewingThisRoom = open && view === 'room' && activeRoomId === data.roomId;
+        if (!isViewingThisRoom) {
+          toast(`💬 ${data.senderName}: ${data.content?.slice(0, 40) ?? ''}${(data.content?.length ?? 0) > 40 ? '…' : ''}`, { duration: 4000 });
+        }
+      }
     };
     es.onerror = () => {};
     return () => es.close();
-  }, [me, qc]);
+  }, [me, qc, open, view, activeRoomId]);
 
   // ── Mutations ──
   const sendDm = useMutation({
