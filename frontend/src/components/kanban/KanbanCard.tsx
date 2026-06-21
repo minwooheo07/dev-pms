@@ -149,6 +149,18 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
         )}
 
         <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+          {hasIssue && (
+            <button
+              ref={badgeRef}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={openIssuePopover}
+              title="연결된 이슈 보기"
+              className="flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm transition-all hover:shadow-md active:scale-95"
+            >
+              <AlertTriangle size={9} strokeWidth={2.5} />
+              이슈 {task._count.issues}
+            </button>
+          )}
           <PriorityBadge priority={task.priority} />
           {task.dueDate && (
             <span className={cn(
@@ -179,24 +191,10 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="flex -space-x-1">
-              {task.assignees.slice(0, 3).map(({ user }) => (
-                <Avatar key={user.id} name={user.name} avatar={user.avatar} size="xs" className="ring-1 ring-white" />
-              ))}
-            </div>
-            {hasIssue && (
-              <button
-                ref={badgeRef}
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={openIssuePopover}
-                title="연결된 이슈 보기"
-                className="flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm transition-all hover:shadow-md active:scale-95"
-              >
-                <AlertTriangle size={9} strokeWidth={2.5} />
-                이슈 {task._count.issues}
-              </button>
-            )}
+          <div className="flex -space-x-1">
+            {task.assignees.slice(0, 3).map(({ user }) => (
+              <Avatar key={user.id} name={user.name} avatar={user.avatar} size="xs" className="ring-1 ring-white" />
+            ))}
           </div>
         </div>
       </div>
