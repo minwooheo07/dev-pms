@@ -94,7 +94,7 @@ export function QATestPage() {
     <div className="flex flex-col h-full">
       <PageHeader
         title="QA 테스트"
-        subtitle="SR번호와 QA번호를 매핑하여 테스트를 관리합니다."
+        description="SR번호와 QA번호를 매핑하여 테스트를 관리합니다."
         actions={
           <Button variant="primary" onClick={() => { setForm(defaultForm); setShowAddModal(true); }}>
             <Plus size={16} className="mr-1" /> QA 등록
@@ -123,7 +123,7 @@ export function QATestPage() {
         {isLoading ? (
           <div className="flex items-center justify-center h-40 text-gray-400 text-sm">로딩 중...</div>
         ) : !tests || tests.length === 0 ? (
-          <EmptyState icon={FlaskConical} title="QA 테스트가 없습니다." description="QA 등록 버튼을 눌러 첫 번째 테스트를 추가하세요." />
+          <EmptyState icon={<FlaskConical size={32} />} title="QA 테스트가 없습니다." description="QA 등록 버튼을 눌러 첫 번째 테스트를 추가하세요." />
         ) : (
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <table className="w-full text-sm">
