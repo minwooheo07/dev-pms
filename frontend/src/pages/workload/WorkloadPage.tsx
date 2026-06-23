@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Clock, Briefcase, Trash2, X, Pencil, CheckCircle2, Check, Filter, Download, BarChart2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Clock, Briefcase, Trash2, X, Pencil, CheckCircle2, Check, Filter, Download, BarChart2, ChevronLeft, ChevronRight, FlaskConical } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 import { worklogsApi, STAGE_CONFIG, STAGE_ORDER, type WorkLogStage } from '../../api/worklogs';
+import { qaApi } from '../../api/qa';
 import { getAccessToken } from '../../utils/token';
 import { projectsApi } from '../../api/projects';
 import { tasksApi } from '../../api/tasks';
@@ -691,6 +692,25 @@ export function WorkloadPage() {
                           <Trash2 size={14} />
                         </button>
                       </>
+                    )}
+                    {viewLog.srNumber && (
+                      <button
+                        onClick={() => {
+                          if (confirm(`SR번호 [${viewLog.srNumber}] 로 QA요청을 하시겠습니까?`)) {
+                            qaApi.create({
+                              srNumber: viewLog.srNumber,
+                              title: viewLog.taskTitle ?? viewLog.description ?? viewLog.srNumber,
+                              workLogId: viewLog.id,
+                            }).then(() => toast.success('QA요청이 등록되었습니다.'))
+                              .catch(() => toast.error('QA요청 등록에 실패했습니다.'));
+                          }
+                        }}
+                        className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-violet-600 hover:text-violet-800 hover:bg-violet-50 rounded-lg transition-colors"
+                        title="QA요청"
+                      >
+                        <FlaskConical size={13} />
+                        QA요청
+                      </button>
                     )}
                     <button onClick={() => setViewLog(null)} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg ml-0.5 transition-colors">
                       <X size={16} />

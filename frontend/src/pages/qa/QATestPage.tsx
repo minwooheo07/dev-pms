@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, X, Pencil, Trash2, FlaskConical } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { qaApi, QA_STATUS_CONFIG, QA_RESULT_CONFIG, type QATestStatus, type QATestResult } from '../../api/qa';
+import { qaApi, QA_STATUS_CONFIG, QA_RESULT_CONFIG, type QATestStatus } from '../../api/qa';
 import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -15,10 +15,9 @@ interface QAForm {
   title: string;
   content: string;
   tester: string;
-  testDate: string;
 }
 
-const defaultForm: QAForm = { srNumber: '', title: '', content: '', tester: '', testDate: '' };
+const defaultForm: QAForm = { srNumber: '', title: '', content: '', tester: '' };
 
 export function QATestPage() {
   const qc = useQueryClient();
@@ -26,9 +25,7 @@ export function QATestPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [form, setForm] = useState<QAForm>(defaultForm);
   const [editItem, setEditItem] = useState<any>(null);
-  const [editForm, setEditForm] = useState<{ title: string; content: string; tester: string; testDate: string; status: QATestStatus; result: string }>({
-    title: '', content: '', tester: '', testDate: '', status: 'PENDING', result: '',
-  });
+  const [editForm, setEditForm] = useState({ title: '', content: '', tester: '' });
 
   const { data: tests, isLoading } = useQuery({
     queryKey: ['qa-tests', filterSR],
@@ -43,31 +40,42 @@ export function QATestPage() {
       title: form.title,
       content: form.content || undefined,
       tester: form.tester || undefined,
-      testDate: form.testDate || undefined,
     }),
-    onSuccess: () => {
-      invalidate();
-      setShowAddModal(false);
-      setForm(defaultForm);
-      toast.success('QA 테스트가 등록되었습니다.');
-    },
+    onSuccess: () => { invalidate(); setShowAddModal(false); setForm(defaultForm); toast.success('QA요청이 등록되었습니다.'); },
     onError: () => toast.error('등록에 실패했습니다.'),
+  });
+
+  const acceptMutation = useMutation({
+    mutationFn: (id: string) => qaApi.accept(id),
+    onSuccess: () => { invalidate(); toast.success('QA 접수되었습니다. QA번호가 발급되었습니다.'); },
+    onError: () => toast.error('접수에 실패했습니다.'),
+  });
+
+  const confirmMutation = useMutation({
+    mutationFn: (id: string) => qaApi.confirm(id),
+    onSuccess: () => { invalidate(); toast.success('QA 확인 처리되었습니다.'); },
+    onError: () => toast.error('처리에 실패했습니다.'),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (id: string) => qaApi.reject(id),
+    onSuccess: () => { invalidate(); toast.success('QA 반려 처리되었습니다.'); },
+    onError: () => toast.error('처리에 실패했습니다.'),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (id: string) => qaApi.cancel(id),
+    onSuccess: () => { invalidate(); toast.success('QA 취소 처리되었습니다.'); },
+    onError: () => toast.error('처리에 실패했습니다.'),
   });
 
   const updateMutation = useMutation({
     mutationFn: () => qaApi.update(editItem.id, {
       title: editForm.title || undefined,
       content: editForm.content || undefined,
-      status: editForm.status,
-      result: (editForm.result as QATestResult) || undefined,
       tester: editForm.tester || undefined,
-      testDate: editForm.testDate || undefined,
     }),
-    onSuccess: () => {
-      invalidate();
-      setEditItem(null);
-      toast.success('수정되었습니다.');
-    },
+    onSuccess: () => { invalidate(); setEditItem(null); toast.success('수정되었습니다.'); },
     onError: () => toast.error('수정에 실패했습니다.'),
   });
 
@@ -78,14 +86,7 @@ export function QATestPage() {
 
   const openEdit = (item: any) => {
     setEditItem(item);
-    setEditForm({
-      title: item.title,
-      content: item.content ?? '',
-      tester: item.tester ?? '',
-      testDate: item.testDate ? item.testDate.slice(0, 10) : '',
-      status: item.status,
-      result: item.result ?? '',
-    });
+    setEditForm({ title: item.title, content: item.content ?? '', tester: item.tester ?? '' });
   };
 
   const isValidSR = SR_NUMBER_PATTERN.test(form.srNumber);
@@ -123,24 +124,32 @@ export function QATestPage() {
         {isLoading ? (
           <div className="flex items-center justify-center h-40 text-gray-400 text-sm">로딩 중...</div>
         ) : !tests || tests.length === 0 ? (
-          <EmptyState icon={<FlaskConical size={32} />} title="QA 테스트가 없습니다." description="QA 등록 버튼을 눌러 첫 번째 테스트를 추가하세요." />
+          <EmptyState icon={<FlaskConical size={32} />} title="QA 테스트가 없습니다." description="워크로드 상세에서 QA요청 버튼을 눌러 등록하세요." />
         ) : (
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  {['QA번호', 'SR번호', '제목', '테스터', '상태', '결과', '테스트일', '등록일', ''].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500">{h}</th>
-                  ))}
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">QA번호</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">SR번호</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">제목</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">테스터</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">상태</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">결과</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">등록일</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">액션</th>
+                  <th className="w-16" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {tests.map((t) => (
                   <tr key={t.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-mono text-xs font-medium text-primary-600">{t.qaNumber}</td>
+                    <td className="px-4 py-3 font-mono text-xs font-medium text-primary-600">
+                      {t.qaNumber ?? <span className="text-gray-300">미발급</span>}
+                    </td>
                     <td className="px-4 py-3 font-mono text-xs">{t.srNumber}</td>
-                    <td className="px-4 py-3 max-w-xs truncate">{t.title}</td>
-                    <td className="px-4 py-3 text-gray-600">{t.tester || '-'}</td>
+                    <td className="px-4 py-3 max-w-xs truncate text-sm">{t.title}</td>
+                    <td className="px-4 py-3 text-xs text-gray-600">{t.tester || '-'}</td>
                     <td className="px-4 py-3">
                       <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', QA_STATUS_CONFIG[t.status].bg, QA_STATUS_CONFIG[t.status].color)}>
                         {QA_STATUS_CONFIG[t.status].label}
@@ -153,13 +162,50 @@ export function QATestPage() {
                         </span>
                       ) : '-'}
                     </td>
-                    <td className="px-4 py-3 text-gray-500">{t.testDate ? formatDate(t.testDate) : '-'}</td>
-                    <td className="px-4 py-3 text-gray-500">{formatDate(t.createdAt)}</td>
+                    <td className="px-4 py-3 text-xs text-gray-400">{formatDate(t.createdAt)}</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
-                        <button onClick={() => openEdit(t)} className="p-1 text-gray-400 hover:text-primary-600 rounded">
-                          <Pencil size={14} />
-                        </button>
+                        {/* PENDING → 접수 버튼 */}
+                        {t.status === 'PENDING' && (
+                          <button
+                            onClick={() => acceptMutation.mutate(t.id)}
+                            className="px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+                          >
+                            접수
+                          </button>
+                        )}
+                        {/* IN_PROGRESS → 확인/반려/취소 버튼 */}
+                        {t.status === 'IN_PROGRESS' && (
+                          <>
+                            <button
+                              onClick={() => { if (confirm('확인 처리하시겠습니까?')) confirmMutation.mutate(t.id); }}
+                              className="px-2 py-1 text-xs font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-md transition-colors"
+                            >
+                              확인
+                            </button>
+                            <button
+                              onClick={() => { if (confirm('반려 처리하시겠습니까?')) rejectMutation.mutate(t.id); }}
+                              className="px-2 py-1 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
+                            >
+                              반려
+                            </button>
+                            <button
+                              onClick={() => { if (confirm('취소 처리하시겠습니까?')) cancelMutation.mutate(t.id); }}
+                              className="px-2 py-1 text-xs font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                            >
+                              취소
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1">
+                        {t.status === 'PENDING' && (
+                          <button onClick={() => openEdit(t)} className="p-1 text-gray-400 hover:text-primary-600 rounded">
+                            <Pencil size={14} />
+                          </button>
+                        )}
                         <button onClick={() => { if (confirm('삭제하시겠습니까?')) deleteMutation.mutate(t.id); }} className="p-1 text-gray-400 hover:text-red-500 rounded">
                           <Trash2 size={14} />
                         </button>
@@ -208,26 +254,15 @@ export function QATestPage() {
                   className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">테스터</label>
-                  <input
-                    type="text"
-                    value={form.tester}
-                    onChange={(e) => setForm({ ...form, tester: e.target.value })}
-                    placeholder="담당자 이름"
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">테스트일</label>
-                  <input
-                    type="date"
-                    value={form.testDate}
-                    onChange={(e) => setForm({ ...form, testDate: e.target.value })}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">테스터</label>
+                <input
+                  type="text"
+                  value={form.tester}
+                  onChange={(e) => setForm({ ...form, tester: e.target.value })}
+                  placeholder="담당자 이름"
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">내용</label>
@@ -254,14 +289,14 @@ export function QATestPage() {
         </div>
       )}
 
-      {/* 수정 모달 */}
+      {/* 수정 모달 (PENDING 상태만) */}
       {editItem && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div>
-                <h2 className="text-base font-bold">QA 테스트 수정</h2>
-                <p className="text-xs text-gray-500 mt-0.5 font-mono">{editItem.qaNumber} / {editItem.srNumber}</p>
+                <h2 className="text-base font-bold">QA 수정</h2>
+                <p className="text-xs text-gray-500 mt-0.5 font-mono">{editItem.srNumber}</p>
               </div>
               <button onClick={() => setEditItem(null)}><X size={18} /></button>
             </div>
@@ -275,52 +310,14 @@ export function QATestPage() {
                   className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">상태</label>
-                  <select
-                    value={editForm.status}
-                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value as QATestStatus })}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  >
-                    {Object.entries(QA_STATUS_CONFIG).map(([k, v]) => (
-                      <option key={k} value={k}>{v.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex-1">
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">결과</label>
-                  <select
-                    value={editForm.result}
-                    onChange={(e) => setEditForm({ ...editForm, result: e.target.value })}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  >
-                    <option value="">-</option>
-                    {Object.entries(QA_RESULT_CONFIG).map(([k, v]) => (
-                      <option key={k} value={k}>{v.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">테스터</label>
-                  <input
-                    type="text"
-                    value={editForm.tester}
-                    onChange={(e) => setEditForm({ ...editForm, tester: e.target.value })}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">테스트일</label>
-                  <input
-                    type="date"
-                    value={editForm.testDate}
-                    onChange={(e) => setEditForm({ ...editForm, testDate: e.target.value })}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">테스터</label>
+                <input
+                  type="text"
+                  value={editForm.tester}
+                  onChange={(e) => setEditForm({ ...editForm, tester: e.target.value })}
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">내용</label>
