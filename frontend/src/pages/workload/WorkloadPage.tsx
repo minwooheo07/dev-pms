@@ -693,31 +693,34 @@ export function WorkloadPage() {
                         </button>
                       </>
                     )}
-                    {viewLog.srNumber && (
-                      <button
-                        onClick={() => {
-                          if (confirm(`SR번호 [${viewLog.srNumber}] 로 QA요청을 하시겠습니까?`)) {
-                            qaApi.create({
-                              srNumber: viewLog.srNumber,
-                              title: viewLog.taskTitle ?? viewLog.description ?? viewLog.srNumber,
-                              workLogId: viewLog.id,
-                            }).then(() => toast.success('QA요청이 등록되었습니다.'))
-                              .catch(() => toast.error('QA요청 등록에 실패했습니다.'));
-                          }
-                        }}
-                        className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-violet-600 hover:text-violet-800 hover:bg-violet-50 rounded-lg transition-colors"
-                        title="QA요청"
-                      >
-                        <FlaskConical size={13} />
-                        QA요청
-                      </button>
-                    )}
                     <button onClick={() => setViewLog(null)} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg ml-0.5 transition-colors">
                       <X size={16} />
                     </button>
                   </div>
                 </div>
               </div>
+
+              {/* QA요청 액션 바 */}
+              {viewLog.srNumber && (
+                <div className="flex justify-end px-6 pt-3">
+                  <button
+                    onClick={() => {
+                      if (confirm(`SR번호 [${viewLog.srNumber}] 로 QA요청을 하시겠습니까?`)) {
+                        qaApi.create({
+                          srNumber: viewLog.srNumber,
+                          title: viewLog.taskTitle ?? viewLog.description ?? viewLog.srNumber,
+                          workLogId: viewLog.id,
+                        }).then(() => toast.success('QA요청이 등록되었습니다.'))
+                          .catch(() => toast.error('QA요청 등록에 실패했습니다.'));
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-violet-600 hover:bg-violet-700 rounded-lg shadow-sm hover:shadow transition-all active:scale-95"
+                  >
+                    <FlaskConical size={14} />
+                    QA요청
+                  </button>
+                </div>
+              )}
 
               {/* 상세 항목 */}
               <div className="px-6 py-2">
