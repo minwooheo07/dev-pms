@@ -59,7 +59,7 @@ export function KanbanColumn({ column, projectId, canManage, currentUserId, isOw
   const statusCfg = { ...STATUS_CONFIG[statusKey], key: statusKey };
 
   return (
-    <div className="flex flex-col w-72 flex-shrink-0">
+    <div className="flex flex-col w-72 flex-shrink-0 max-h-full">
       {/* Column Header */}
       <div className="flex items-center justify-between mb-2 px-1 group">
         <div className="flex items-center gap-2 min-w-0">
@@ -116,7 +116,7 @@ export function KanbanColumn({ column, projectId, canManage, currentUserId, isOw
       <div
         ref={setNodeRef}
         className={cn(
-          'flex-1 rounded-xl p-2 space-y-2 min-h-[120px] border-2 border-dashed transition-colors',
+          'flex-1 overflow-y-auto rounded-xl p-2 space-y-2 min-h-[120px] border-2 border-dashed transition-colors',
           isOver ? 'bg-primary-50/70 border-gray-300' : 'bg-gray-100/60 border-transparent',
         )}
       >
