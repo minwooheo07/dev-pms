@@ -37,7 +37,7 @@ export function TaskDetailModal() {
     if (!taskModalOpen) setIsEditing(false);
   }, [taskModalOpen]);
   const [editForm, setEditForm] = useState({
-    title: '', description: '', priority: '', startDate: '', dueDate: '',
+    title: '', part: '', description: '', priority: '', startDate: '', dueDate: '',
     assigneeIds: [] as string[], personnelIds: [] as string[], labelIds: [] as string[],
   });
 
@@ -91,6 +91,7 @@ export function TaskDetailModal() {
     if (!task) return;
     setEditForm({
       title: task.title,
+      part: task.part ?? '',
       description: task.description ?? '',
       priority: task.priority,
       startDate: task.startDate ? task.startDate.slice(0, 10) : '',
@@ -106,6 +107,7 @@ export function TaskDetailModal() {
   const saveEdit = () => {
     updateTask.mutate({
       title: editForm.title,
+      part: editForm.part.trim() || undefined,
       description: editForm.description,
       priority: editForm.priority,
       startDate: editForm.startDate ? new Date(editForm.startDate).toISOString() : null,
@@ -283,6 +285,15 @@ export function TaskDetailModal() {
                         className="w-full text-base font-semibold text-gray-600 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                         value={editForm.title}
                         onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">업무파트</label>
+                      <input
+                        className="w-full text-sm text-gray-600 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        placeholder="업무파트 입력 (선택)"
+                        value={editForm.part}
+                        onChange={(e) => setEditForm((f) => ({ ...f, part: e.target.value }))}
                       />
                     </div>
                     <div>

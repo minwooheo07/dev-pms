@@ -26,6 +26,7 @@ export function CreateTaskModal() {
   const open = !!createTaskProjectId;
 
   const [title, setTitle] = useState('');
+  const [part, setPart] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<Priority>('MEDIUM');
   const [startDate, setStartDate] = useState('');
@@ -59,6 +60,7 @@ export function CreateTaskModal() {
 
   const handleClose = () => {
     setTitle('');
+    setPart('');
     setDescription('');
     setPriority('MEDIUM');
     setStartDate('');
@@ -73,6 +75,7 @@ export function CreateTaskModal() {
     if (!title.trim()) return;
     create.mutate({
       title: title.trim(),
+      part: part.trim() || undefined,
       description: description.trim() || undefined,
       priority,
       stepId: createTaskStepId ?? undefined,
@@ -103,6 +106,12 @@ export function CreateTaskModal() {
             onChange={(e) => setTitle(e.target.value)}
             autoFocus
             required
+          />
+          <Input
+            label="업무파트"
+            placeholder="업무파트 입력 (선택)"
+            value={part}
+            onChange={(e) => setPart(e.target.value)}
           />
           <div>
             <label className="text-sm font-medium text-gray-600 mb-1.5 block">설명</label>
