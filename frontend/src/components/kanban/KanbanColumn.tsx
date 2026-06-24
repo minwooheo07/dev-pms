@@ -116,7 +116,7 @@ export function KanbanColumn({ column, projectId, canManage, currentUserId, isOw
       <div
         ref={setNodeRef}
         className={cn(
-          'flex-1 overflow-y-auto rounded-xl p-2 space-y-2 min-h-[120px] border-2 border-dashed transition-colors',
+          'flex-1 overflow-y-auto rounded-xl p-2 pb-10 space-y-2 min-h-[120px] border-2 border-dashed transition-colors',
           isOver ? 'bg-primary-50/70 border-gray-300' : 'bg-gray-100/60 border-transparent',
         )}
       >
