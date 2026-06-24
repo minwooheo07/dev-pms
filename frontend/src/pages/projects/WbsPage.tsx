@@ -95,7 +95,12 @@ export function WbsPage() {
 
   const startEdit = (id: string, field: EditState['field'], value: string) => {
     setEditState({ id, field, value });
-    setTimeout(() => inputRef.current?.focus(), 0);
+    setTimeout(() => {
+      inputRef.current?.focus();
+      if (field === 'startDate' || field === 'endDate') {
+        (inputRef.current as HTMLInputElement | null)?.showPicker?.();
+      }
+    }, 0);
   };
 
   const commitEdit = () => {
@@ -364,10 +369,10 @@ export function WbsPage() {
                       />
                     ) : (
                       <span
-                        onDoubleClick={() => startEdit(item.id, 'startDate', item.startDate?.slice(0, 10) ?? '')}
-                        className="text-xs text-gray-600 cursor-text"
+                        onClick={() => startEdit(item.id, 'startDate', item.startDate?.slice(0, 10) ?? '')}
+                        className="text-xs text-gray-600 cursor-pointer hover:text-primary-600 transition-colors"
                       >
-                        {item.startDate ? formatDate(item.startDate) : <span className="text-gray-300">-</span>}
+                        {item.startDate ? formatDate(item.startDate) : <span className="text-gray-300 hover:text-primary-400">날짜 선택</span>}
                       </span>
                     )}
                   </div>
@@ -386,10 +391,10 @@ export function WbsPage() {
                       />
                     ) : (
                       <span
-                        onDoubleClick={() => startEdit(item.id, 'endDate', item.endDate?.slice(0, 10) ?? '')}
-                        className="text-xs text-gray-600 cursor-text"
+                        onClick={() => startEdit(item.id, 'endDate', item.endDate?.slice(0, 10) ?? '')}
+                        className="text-xs text-gray-600 cursor-pointer hover:text-primary-600 transition-colors"
                       >
-                        {item.endDate ? formatDate(item.endDate) : <span className="text-gray-300">-</span>}
+                        {item.endDate ? formatDate(item.endDate) : <span className="text-gray-300 hover:text-primary-400">날짜 선택</span>}
                       </span>
                     )}
                   </div>
