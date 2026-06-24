@@ -30,7 +30,7 @@ export const tasksApi = {
 
 export interface BulkTaskRow {
   category: string;
-  title: string;
+  title?: string;
   description?: string;
   assigneeName?: string;
   priority?: string;

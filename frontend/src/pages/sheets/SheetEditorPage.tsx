@@ -1007,7 +1007,8 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
 
 // ── Sheet → BulkTaskRow 파서 ──────────────────────────────────────────────────
 const SHEET_HEADER_MAP: Record<string, keyof BulkTaskRow> = {
-  '업무구분': 'category', '요구사항': 'title', '제목': 'title',
+  '업무구분': 'category', '태스크명': 'category', '태스크': 'category',
+  '요구사항': 'title', '제목': 'title', '서브태스크': 'title', '하위태스크': 'title',
   '설명': 'description', '담당자': 'assigneeName',
   '우선순위': 'priority', '시작일': 'startDate', '마감일': 'dueDate',
 };
@@ -1030,7 +1031,7 @@ function parseSheetToRows(data: SheetData): BulkTaskRow[] {
       const v = norm(data.cells[ck(r, Number(cs))]).v?.trim();
       if (v) row[field] = v;
     }
-    if (row.category && row.title) rows.push(row as BulkTaskRow);
+    if (row.category) rows.push(row as BulkTaskRow);
   }
   return rows;
 }
@@ -1311,7 +1312,7 @@ export function SheetEditorPage() {
                 {/* 헤더 형식 안내 */}
                 <div className="rounded-xl border border-dashed border-violet-200 bg-violet-50 px-4 py-3 text-xs text-violet-700">
                   <p className="font-semibold mb-0.5">시트 1행에 헤더가 있어야 합니다</p>
-                  <p className="text-violet-500">필수: <b>업무구분</b> · <b>요구사항</b>(또는 제목) / 선택: 설명 · 담당자 · 우선순위 · 시작일 · 마감일</p>
+                  <p className="text-violet-500">필수: <b>업무구분</b>(또는 태스크명) / 선택: 요구사항(서브태스크) · 설명 · 담당자 · 우선순위 · 시작일 · 마감일</p>
                 </div>
 
                 {/* 미리보기 */}
