@@ -24,7 +24,7 @@ export interface WorkLogCreateData {
 }
 
 export const worklogsApi = {
-  getAll: (params?: { userId?: string; projectId?: string; stage?: string; startDate?: string; endDate?: string }) =>
+  getAll: (params?: { userId?: string; projectId?: string; taskId?: string; stage?: string; startDate?: string; endDate?: string }) =>
     api.get('/worklogs', { params }).then((r) => r.data),
   getSummary: () =>
     api.get('/worklogs/summary').then((r) => r.data),

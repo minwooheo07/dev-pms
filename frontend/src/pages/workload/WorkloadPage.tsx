@@ -55,6 +55,7 @@ export function WorkloadPage() {
 
   // ── 조회 필터 ──────────────────────────────────────────
   const [filterProject, setFilterProject] = useState(routeProjectId ?? '');
+  const [filterTask, setFilterTask] = useState('');
   const [filterUser, setFilterUser] = useState(searchParams.get('user') ?? '');
   const [filterStage, setFilterStage] = useState<WorkLogStage | ''>('');
   const [filterStart, setFilterStart] = useState('');
@@ -139,14 +140,23 @@ export function WorkloadPage() {
     enabled: !!editProjectId && !!editLog,
   });
 
+  // 조회 필터용 태스크 목록 (선택된 프로젝트 기준)
+  const filterProjectId = filterProject || routeProjectId || '';
+  const { data: filterTasks } = useQuery({
+    queryKey: ['tasks', filterProjectId],
+    queryFn: () => tasksApi.getAll(filterProjectId),
+    enabled: !!filterProjectId,
+  });
+
   const queryParams = {
     ...(filterProject && { projectId: filterProject }),
+    ...(filterTask && { taskId: filterTask }),
     ...(filterUser && { userId: filterUser }),
     ...(filterStage && { stage: filterStage }),
     ...(filterStart && { startDate: filterStart }),
     ...(filterEnd && { endDate: filterEnd }),
   };
-  const queryKey = ['worklogs', filterProject, filterUser, filterStage, filterStart, filterEnd];
+  const queryKey = ['worklogs', filterProject, filterTask, filterUser, filterStage, filterStart, filterEnd];
 
   const { data: worklogs, isLoading, isError, refetch } = useQuery({
     queryKey,
@@ -281,7 +291,9 @@ export function WorkloadPage() {
   const [page, setPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil(filteredLogs.length / PAGE_SIZE));
   // 필터/담당자 변경 시 1페이지로, 범위 벗어나면 보정
-  useEffect(() => { setPage(1); }, [filterProject, filterUser, filterStage, filterStart, filterEnd, selectedUserId]);
+  useEffect(() => { setPage(1); }, [filterProject, filterTask, filterUser, filterStage, filterStart, filterEnd, selectedUserId]);
+  // 프로젝트 변경 시 이전 프로젝트의 태스크 선택값 초기화
+  useEffect(() => { setFilterTask(''); }, [filterProject]);
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
   const pagedLogs = filteredLogs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
@@ -294,7 +306,7 @@ export function WorkloadPage() {
     return formatDate(log.workDate);
   };
 
-  const activeFilters = [filterUser, filterStage, filterStart, filterEnd].filter(Boolean).length;
+  const activeFilters = [filterTask, filterUser, filterStage, filterStart, filterEnd].filter(Boolean).length;
 
   const downloadExcel = () => {
     const rows = filteredLogs.map((log: any) => ({
@@ -450,10 +462,24 @@ export function WorkloadPage() {
             </select>
           )}
 
+          {/* 태스크 (프로젝트가 선택된 경우에만) */}
+          <select
+            value={filterTask}
+            onChange={(e) => setFilterTask(e.target.value)}
+            disabled={!filterProjectId}
+            title={!filterProjectId ? '먼저 프로젝트를 선택하세요' : undefined}
+            className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white disabled:bg-gray-50 disabled:text-gray-300 max-w-[180px]"
+          >
+            <option value="">전체 태스크</option>
+            {filterTasks?.map((t: any) => (
+              <option key={t.id} value={t.id}>{t.title}</option>
+            ))}
+          </select>
+
           {/* 초기화 */}
           {activeFilters > 0 && (
             <button
-              onClick={() => { setFilterUser(''); setFilterStage(''); setFilterStart(''); setFilterEnd(''); }}
+              onClick={() => { setFilterTask(''); setFilterUser(''); setFilterStage(''); setFilterStart(''); setFilterEnd(''); }}
               className="text-xs text-gray-400 hover:text-gray-600 underline ml-1"
             >
               초기화
