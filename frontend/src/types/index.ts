@@ -98,6 +98,7 @@ export interface Task {
   attachments?: Attachment[];
   issues?: { id: string; title: string; riskLevel: IssueRisk; status: IssueStatus }[];
   _count: { comments: number; attachments: number; subTasks: number; issues: number };
+  workLogStats?: { total: number; completed: number; overdue: boolean };
 }
 
 export interface KanbanColumn extends Step {

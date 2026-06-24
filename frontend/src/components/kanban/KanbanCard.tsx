@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { MessageSquare, Paperclip, CalendarDays, GitBranch, Trash2, AlertTriangle, X, ChevronRight, ChevronDown } from 'lucide-react';
+import { MessageSquare, Paperclip, CalendarDays, GitBranch, Trash2, AlertTriangle, X, ChevronRight, ChevronDown, ClipboardList } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -43,6 +43,7 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
 
   const isOverdue = isDueDateOverdue(task.dueDate);
   const hasIssue = task._count.issues > 0;
+  const wlStats = task.workLogStats;
   const issues = task.issues ?? [];
   const hasUnresolvedIssue = issues.some((i) => i.status !== 'RESOLVED');
 
@@ -200,7 +201,7 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
         </div>
 
         {/* 하단 푸터 */}
-        {(task._count.comments > 0 || task._count.attachments > 0) && (
+        {(task._count.comments > 0 || task._count.attachments > 0 || (wlStats && wlStats.total > 0)) && (
           <div className="flex items-center gap-2 pt-1 border-t border-gray-50">
             {task._count.comments > 0 && (
               <span className="flex items-center gap-1 text-[11px] text-gray-400 font-medium">
@@ -210,6 +211,32 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
             {task._count.attachments > 0 && (
               <span className="flex items-center gap-1 text-[11px] text-gray-400 font-medium">
                 <Paperclip size={10} /> {task._count.attachments}
+              </span>
+            )}
+
+            {/* 우측 하단: 워크로드 일감 완료/전체 — 지연 시 앰버 + ping 점 */}
+            {wlStats && wlStats.total > 0 && (
+              <span
+                title={wlStats.overdue
+                  ? `마감일 경과 · 완료 이상이 아닌 일감 ${wlStats.total - wlStats.completed}건`
+                  : `워크로드 완료 ${wlStats.completed} / 전체 ${wlStats.total}`}
+                className={cn(
+                  'ml-auto flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border',
+                  wlStats.overdue
+                    ? 'bg-amber-50 text-amber-700 border-amber-300'
+                    : wlStats.completed === wlStats.total
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-gray-50 text-gray-500 border-gray-200',
+                )}
+              >
+                {wlStats.overdue && (
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 animate-ping" />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500" />
+                  </span>
+                )}
+                <ClipboardList size={9} strokeWidth={2.5} />
+                {wlStats.completed}/{wlStats.total}
               </span>
             )}
           </div>
