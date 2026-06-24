@@ -808,14 +808,18 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
     e.preventDefault(); e.stopPropagation();
     const startX = e.clientX;
     const startW = colW(col);
-    // colgroup의 col 요소: 0번은 행 헤더, 1번부터 데이터 열
+    // colgroup col 요소(0번=행헤더, 1번~=데이터열) + thead th 요소 모두 직접 조작
     const colEl = tableRef.current?.querySelectorAll('col')[col + 1] as HTMLElement | undefined;
+    const thEl = tableRef.current?.querySelectorAll('thead th')[col + 1] as HTMLElement | undefined;
     const onMove = (mv: MouseEvent) => {
       const nw = Math.max(40, startW + mv.clientX - startX);
       if (colEl) colEl.style.width = `${nw}px`;
+      if (thEl) thEl.style.width = `${nw}px`;
     };
     const onUp = (mv: MouseEvent) => {
       const nw = Math.max(40, startW + mv.clientX - startX);
+      if (colEl) colEl.style.width = `${nw}px`;
+      if (thEl) thEl.style.width = `${nw}px`;
       onChangeRef.current({ ...dataRef.current, colWidths: { ...dataRef.current.colWidths, [col]: nw } });
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
@@ -975,8 +979,8 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
                   data-col={c}
                   onContextMenu={e => { e.preventDefault(); setColCtxMenu({ col: c, x: e.clientX, y: e.clientY }); }}>
                   {colLabel(c)}
-                  <span className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-primary-400 z-10"
-                    onMouseDown={e => onResizeStart(e, c)} />
+                  <span className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-primary-400 z-10 pointer-events-auto"
+                    onMouseDown={e => { e.stopPropagation(); onResizeStart(e, c); }} />
                 </th>
               ))}
             </tr>
