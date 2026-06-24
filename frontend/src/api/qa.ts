@@ -17,7 +17,20 @@ export interface QATest {
   completedAt?: string;
   workLogId?: string;
   workLogDeleted?: boolean;
-  workLog?: { id: string; taskTitle?: string; srNumber?: string };
+  workLog?: {
+    id: string;
+    taskTitle?: string;
+    srNumber?: string;
+    projectName?: string;
+    requester?: string;
+    requestDate?: string;
+    startDate?: string;
+    endDate?: string;
+    stage?: string;
+    hours?: number;
+    description?: string;
+    user?: { id: string; name: string };
+  };
   createdAt: string;
   updatedAt: string;
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, X, FlaskConical, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
+import { Plus, X, FlaskConical, RefreshCw, RotateCcw, Trash2, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { qaApi, QA_STATUS_CONFIG, QA_RESULT_CONFIG, type QATest } from '../../api/qa';
 import { Button } from '../../components/ui/Button';
@@ -293,7 +293,7 @@ export function QATestPage() {
       {viewItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setViewItem(null)} />
-          <div className={cn('relative bg-white rounded-2xl shadow-2xl w-full overflow-hidden flex max-h-[88vh]', hasHistory ? 'max-w-3xl' : 'max-w-lg')}>
+          <div className={cn('relative bg-white rounded-2xl shadow-2xl w-full overflow-hidden flex max-h-[88vh]', hasHistory ? 'max-w-4xl' : 'max-w-2xl')}>
             {/* 좌측 요청 이력 패널 (같은 SR번호로 재요청된 경우) */}
             {hasHistory && (
               <aside className="w-48 flex-shrink-0 border-r border-gray-200 bg-gray-50/70 overflow-y-auto">
@@ -531,6 +531,92 @@ export function QATestPage() {
               </div>
             </div>
             </div>
+
+            {/* 우측 SR 정보 패널 */}
+            {viewItem.workLog && !viewItem.workLogDeleted && (
+              <aside className="w-56 flex-shrink-0 border-l border-gray-200 bg-gray-50/60 overflow-y-auto">
+                <div className="px-4 py-3 border-b border-gray-200 sticky top-0 bg-gray-50/95 backdrop-blur-sm flex items-center gap-1.5">
+                  <FileText size={13} className="text-gray-400" />
+                  <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">SR 정보</p>
+                </div>
+                <div className="px-4 py-3 space-y-3">
+                  {/* SR번호 */}
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-400 mb-0.5">SR번호</p>
+                    <p className="text-xs font-mono font-bold text-primary-600">{viewItem.workLog.srNumber ?? viewItem.srNumber}</p>
+                  </div>
+                  {/* 일감 제목 */}
+                  {viewItem.workLog.taskTitle && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-gray-400 mb-0.5">일감명</p>
+                      <p className="text-xs text-gray-700 leading-snug">{viewItem.workLog.taskTitle}</p>
+                    </div>
+                  )}
+                  {/* 프로젝트명 */}
+                  {viewItem.workLog.projectName && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-gray-400 mb-0.5">프로젝트</p>
+                      <p className="text-xs text-gray-700">{viewItem.workLog.projectName}</p>
+                    </div>
+                  )}
+                  {/* 요청자 */}
+                  {viewItem.workLog.requester && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-gray-400 mb-0.5">요청자</p>
+                      <p className="text-xs text-gray-700">{viewItem.workLog.requester}</p>
+                    </div>
+                  )}
+                  {/* 담당자 */}
+                  {viewItem.workLog.user && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-gray-400 mb-0.5">담당자</p>
+                      <p className="text-xs text-gray-700">{viewItem.workLog.user.name}</p>
+                    </div>
+                  )}
+                  {/* 요청일 */}
+                  {viewItem.workLog.requestDate && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-gray-400 mb-0.5">요청일</p>
+                      <p className="text-xs text-gray-700">{formatDate(viewItem.workLog.requestDate)}</p>
+                    </div>
+                  )}
+                  {/* 개발 기간 */}
+                  {(viewItem.workLog.startDate || viewItem.workLog.endDate) && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-gray-400 mb-0.5">개발 기간</p>
+                      <p className="text-xs text-gray-700">
+                        {viewItem.workLog.startDate ? formatDate(viewItem.workLog.startDate) : '?'}
+                        {' ~ '}
+                        {viewItem.workLog.endDate ? formatDate(viewItem.workLog.endDate) : '?'}
+                      </p>
+                    </div>
+                  )}
+                  {/* 단계 */}
+                  {viewItem.workLog.stage && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-gray-400 mb-0.5">단계</p>
+                      <p className="text-xs text-gray-700">
+                        {{ RECEIVED: '접수', DEVELOPMENT: '개발중', COMPLETED: '개발완료', USER_CONFIRMED: '사용자확인', DEPLOYED: '배포완료' }[viewItem.workLog.stage] ?? viewItem.workLog.stage}
+                      </p>
+                    </div>
+                  )}
+                  {/* 공수 */}
+                  {viewItem.workLog.hours != null && viewItem.workLog.hours > 0 && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-gray-400 mb-0.5">공수</p>
+                      <p className="text-xs text-gray-700">{viewItem.workLog.hours}h</p>
+                    </div>
+                  )}
+                  {/* 설명 */}
+                  {viewItem.workLog.description && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-gray-400 mb-0.5">설명</p>
+                      <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-wrap">{viewItem.workLog.description}</p>
+                    </div>
+                  )}
+                </div>
+              </aside>
+            )}
           </div>
         </div>
       )}
