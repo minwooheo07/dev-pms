@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, X, FlaskConical, RefreshCw, RotateCcw } from 'lucide-react';
+import { Plus, X, FlaskConical, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { qaApi, QA_STATUS_CONFIG, QA_RESULT_CONFIG, type QATest } from '../../api/qa';
 import { Button } from '../../components/ui/Button';
@@ -95,6 +95,12 @@ export function QATestPage() {
     onError: () => toast.error('처리에 실패했습니다.'),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => qaApi.remove(id),
+    onSuccess: () => { invalidate(); setViewItem(null); toast.success('QA가 삭제되었습니다.'); },
+    onError: () => toast.error('삭제에 실패했습니다.'),
+  });
+
   const updateMutation = useMutation({
     mutationFn: () => qaApi.update(viewItem!.id, {
       title: detailForm.title || undefined,
@@ -171,7 +177,14 @@ export function QATestPage() {
                       {t.qaNumber ?? <span className="text-gray-300">미발급</span>}
                     </td>
                     <td className="px-4 py-3 font-mono text-xs">{t.srNumber}</td>
-                    <td className="px-4 py-3 max-w-xs truncate text-sm">{t.title}</td>
+                    <td className="px-4 py-3 max-w-xs truncate text-sm">
+                      <span className="inline-flex items-center gap-1.5">
+                        {t.workLogDeleted && (
+                          <span className="text-[10px] font-semibold text-red-500 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full whitespace-nowrap">삭제된 일감</span>
+                        )}
+                        <span className="truncate">{t.title}</span>
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-xs text-gray-600">{t.tester || '-'}</td>
                     <td className="px-4 py-3">
                       <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', QA_STATUS_CONFIG[t.status].bg, QA_STATUS_CONFIG[t.status].color)}>
@@ -283,6 +296,9 @@ export function QATestPage() {
                     <span className={cn('text-[11px] font-bold', QA_RESULT_CONFIG[viewItem.result].color)}>
                       {QA_RESULT_CONFIG[viewItem.result].label}
                     </span>
+                  )}
+                  {viewItem.workLogDeleted && (
+                    <span className="text-[10px] font-semibold text-red-500 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full">삭제된 일감</span>
                   )}
                 </div>
                 <h2 className="text-base font-bold text-gray-700 leading-snug truncate">{viewItem.title}</h2>
@@ -427,11 +443,24 @@ export function QATestPage() {
             </div>
 
             {/* 푸터 */}
-            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100">
+            <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-gray-100">
+              {viewItem.workLogDeleted ? (
+                <button
+                  onClick={() => setConfirmState({
+                    title: 'QA 삭제', message: '연결된 일감이 삭제된 QA입니다. 삭제하시겠습니까?', confirmText: '삭제', tone: 'danger',
+                    onConfirm: () => deleteMutation.mutate(viewItem.id),
+                  })}
+                  className="flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-700 transition-colors"
+                >
+                  <Trash2 size={14} /> 삭제
+                </button>
+              ) : <span />}
+              <div className="flex gap-2">
               <Button variant="ghost" onClick={() => setViewItem(null)}>닫기</Button>
               <Button variant="primary" onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}>
                 저장
               </Button>
+              </div>
             </div>
           </div>
         </div>

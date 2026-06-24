@@ -14,6 +14,7 @@ export interface QATest {
   tester?: string;
   testDate?: string;
   workLogId?: string;
+  workLogDeleted?: boolean;
   workLog?: { id: string; taskTitle?: string; srNumber?: string };
   createdAt: string;
   updatedAt: string;
