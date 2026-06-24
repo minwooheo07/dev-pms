@@ -87,7 +87,7 @@ export function WorkloadPage() {
   // ── 수정 모달 ───────────────────────────────────────────
   const [editLog, setEditLog] = useState<any>(null);
   const [editForm, setEditForm] = useState({
-    hours: 1, description: '', startDate: '', endDate: '', userId: '', stage: '' as WorkLogStage | '', requester: '', requestDate: '', taskTitle: '',
+    hours: 1, description: '', startDate: '', endDate: '', userId: '', stage: '' as WorkLogStage | '', requester: '', requestDate: '', taskId: '',
   });
 
   // ── 담당자 카드 선택 필터 ─────────────────────────────
@@ -114,6 +114,13 @@ export function WorkloadPage() {
     queryKey: ['tasks', form.projectId],
     queryFn: () => tasksApi.getAll(form.projectId),
     enabled: !!form.projectId,
+  });
+
+  const editProjectId = editLog?.task?.project?.id ?? editLog?.projectId ?? routeProjectId;
+  const { data: editTasks } = useQuery({
+    queryKey: ['tasks', editProjectId],
+    queryFn: () => tasksApi.getAll(editProjectId!),
+    enabled: !!editProjectId && !!editLog,
   });
 
   const queryParams = {
@@ -769,7 +776,7 @@ export function WorkloadPage() {
                               stage: viewLog.stage ?? '',
                               requester: viewLog.requester ?? '',
                               requestDate: viewLog.requestDate ? viewLog.requestDate.slice(0, 10) : '',
-                              taskTitle: viewLog.task?.title ?? viewLog.taskTitle ?? '',
+                              taskId: viewLog.task?.id ?? '',
                             });
                           }}
                           className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-primary-50 rounded-lg transition-colors"
@@ -1022,25 +1029,25 @@ export function WorkloadPage() {
               <button onClick={() => setEditLog(null)} className="text-gray-400 hover:text-gray-600 p-1"><X size={18} /></button>
             </div>
             <div className="p-6 space-y-4">
-              {/* 태스크 제목 */}
+              {/* 태스크 선택 */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                  태스크 제목
-                  {!editLog.task?.id && <span className="ml-1.5 text-gray-400 font-normal">(삭제된 태스크 — 수정 불가)</span>}
-                </label>
-                {editLog.task?.id ? (
-                  <input
-                    type="text"
-                    value={editForm.taskTitle}
-                    onChange={(e) => setEditForm({ ...editForm, taskTitle: e.target.value })}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                ) : (
-                  <div className="bg-gray-50 rounded-lg px-3 py-2">
-                    <p className="text-sm text-gray-400 line-through">{editLog.taskTitle ?? '-'}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{editLog.task?.project?.name ?? editLog.projectName ?? ''}</p>
-                  </div>
-                )}
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">태스크</label>
+                <select
+                  value={editForm.taskId}
+                  onChange={(e) => setEditForm({ ...editForm, taskId: e.target.value })}
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  {!editForm.taskId && <option value="">태스크 선택</option>}
+                  {editTasks?.map((t: any) => (
+                    <option key={t.id} value={t.id}>{t.title}</option>
+                  ))}
+                  {/* 현재 연결된 태스크가 목록에 없는 경우(삭제된 태스크)를 대비 */}
+                  {editForm.taskId && !editTasks?.find((t: any) => t.id === editForm.taskId) && (
+                    <option value={editForm.taskId} disabled>
+                      {editLog.task?.title ?? editLog.taskTitle ?? '(삭제된 태스크)'}
+                    </option>
+                  )}
+                </select>
               </div>
 
               {/* 단계 플래그 버튼 */}
@@ -1153,14 +1160,21 @@ export function WorkloadPage() {
               <Button variant="ghost" onClick={() => setEditLog(null)}>닫기</Button>
               <Button
                 variant="primary"
-                onClick={async () => {
-                  if (editLog.task?.id && editForm.taskTitle && editForm.taskTitle !== (editLog.task?.title ?? '')) {
-                    const projectId = editLog.task?.project?.id ?? editLog.projectId;
-                    if (projectId) {
-                      await tasksApi.update(projectId, editLog.task.id, { title: editForm.taskTitle }).catch(() => {});
-                    }
-                  }
-                  updateWorklog.mutate({ id: editLog.id, patch: { hours: editForm.hours, description: editForm.description, startDate: editForm.startDate, endDate: editForm.endDate, userId: editForm.userId, requester: editForm.requester || undefined, requestDate: editForm.requestDate || undefined, ...(editForm.stage && { stage: editForm.stage }) } });
+                onClick={() => {
+                  updateWorklog.mutate({
+                    id: editLog.id,
+                    patch: {
+                      ...(editForm.taskId && editForm.taskId !== (editLog.task?.id ?? '') && { taskId: editForm.taskId }),
+                      hours: editForm.hours,
+                      description: editForm.description,
+                      startDate: editForm.startDate,
+                      endDate: editForm.endDate,
+                      userId: editForm.userId,
+                      requester: editForm.requester || undefined,
+                      requestDate: editForm.requestDate || undefined,
+                      ...(editForm.stage && { stage: editForm.stage }),
+                    },
+                  });
                 }}
                 disabled={editForm.hours <= 0}
                 loading={updateWorklog.isPending}
