@@ -11,11 +11,13 @@ interface BulkImportModalProps {
   onClose: () => void;
 }
 
-// 엑셀 헤더 → 내부 필드 매핑 (한글 헤더 허용)
+// 엑셀 헤더 → 내부 필드 매핑 (한글 헤더 허용 — 실제 태스크 필드명 기준)
 const HEADER_MAP: Record<string, keyof BulkTaskRow> = {
   '업무구분': 'category',
-  '요구사항': 'title',
   '제목': 'title',
+  '요구사항': 'title', // 구버전 양식 호환
+  '업무파트': 'part',
+  '파트': 'part',
   '설명': 'description',
   '담당자': 'assigneeName',
   '우선순위': 'priority',
@@ -59,12 +61,12 @@ export function BulkImportModal({ projectId, onClose }: BulkImportModalProps) {
 
   const downloadTemplate = () => {
     const sample = [
-      { 업무구분: '회원관리', 요구사항: '로그인 SSO 연동', 설명: '사내 SSO 연동', 담당자: '', 우선순위: 'HIGH', 시작일: '2026-07-01', 마감일: '2026-07-10' },
-      { 업무구분: '회원관리', 요구사항: '비밀번호 정책 적용', 설명: '', 담당자: '', 우선순위: 'MEDIUM', 시작일: '', 마감일: '' },
-      { 업무구분: '주문관리', 요구사항: '주문 취소 기능', 설명: '', 담당자: '', 우선순위: 'URGENT', 시작일: '', 마감일: '' },
+      { 업무구분: '회원관리', 제목: '로그인 SSO 연동', 업무파트: '백엔드', 설명: '사내 SSO 연동', 담당자: '', 우선순위: 'HIGH', 시작일: '2026-07-01', 마감일: '2026-07-10' },
+      { 업무구분: '회원관리', 제목: '비밀번호 정책 적용', 업무파트: '백엔드', 설명: '', 담당자: '', 우선순위: 'MEDIUM', 시작일: '', 마감일: '' },
+      { 업무구분: '주문관리', 제목: '주문 취소 기능', 업무파트: '프론트', 설명: '', 담당자: '', 우선순위: 'URGENT', 시작일: '', 마감일: '' },
     ];
     const ws = XLSX.utils.json_to_sheet(sample);
-    ws['!cols'] = [{ wch: 14 }, { wch: 28 }, { wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }];
+    ws['!cols'] = [{ wch: 14 }, { wch: 28 }, { wch: 12 }, { wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '요구사항');
     XLSX.writeFile(wb, 'task_bulk_template.xlsx');
@@ -96,7 +98,7 @@ export function BulkImportModal({ projectId, onClose }: BulkImportModalProps) {
             </div>
             <div>
               <h2 className="text-base font-bold text-gray-800">엑셀 일괄 등록</h2>
-              <p className="text-[11px] text-gray-500">업무구분별로 상위 태스크 + 하위 요구사항을 한번에 생성</p>
+              <p className="text-[11px] text-gray-500">업무구분별로 상위 태스크 + 하위 태스크를 한번에 생성</p>
             </div>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
@@ -107,7 +109,7 @@ export function BulkImportModal({ projectId, onClose }: BulkImportModalProps) {
           <div className="flex items-center justify-between rounded-xl border border-dashed border-gray-300 px-4 py-3 bg-gray-50">
             <div className="text-xs text-gray-600">
               <p className="font-semibold mb-0.5">1. 양식을 받아 내용을 채우세요</p>
-              <p className="text-gray-400">필수: 업무구분, 요구사항(제목) / 선택: 설명, 담당자, 우선순위, 시작일, 마감일</p>
+              <p className="text-gray-400">필수: 업무구분, 제목 / 선택: 업무파트, 설명, 담당자, 우선순위, 시작일, 마감일</p>
             </div>
             <Button variant="outline" onClick={downloadTemplate}>
               <Download size={14} className="mr-1" /> 양식 다운로드
@@ -137,14 +139,15 @@ export function BulkImportModal({ projectId, onClose }: BulkImportModalProps) {
           {rows.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-gray-600 mb-1.5">
-                3. 미리보기 — 업무구분 <b className="text-primary-600">{groupCount.size}</b>개 · 요구사항 <b className="text-primary-600">{rows.length}</b>개
+                3. 미리보기 — 업무구분 <b className="text-primary-600">{groupCount.size}</b>개 · 태스크 <b className="text-primary-600">{rows.length}</b>개
               </p>
               <div className="rounded-xl border border-gray-200 overflow-hidden max-h-60 overflow-y-auto">
                 <table className="w-full text-xs">
                   <thead className="bg-gray-50 sticky top-0">
                     <tr>
                       <th className="px-3 py-2 text-left font-semibold text-gray-500">업무구분</th>
-                      <th className="px-3 py-2 text-left font-semibold text-gray-500">요구사항</th>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-500">제목</th>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-500">업무파트</th>
                       <th className="px-3 py-2 text-left font-semibold text-gray-500">담당자</th>
                       <th className="px-3 py-2 text-left font-semibold text-gray-500">우선순위</th>
                     </tr>
@@ -153,7 +156,8 @@ export function BulkImportModal({ projectId, onClose }: BulkImportModalProps) {
                     {rows.slice(0, 100).map((r, i) => (
                       <tr key={i} className="hover:bg-gray-50">
                         <td className="px-3 py-1.5 text-gray-600">{r.category}</td>
-                        <td className="px-3 py-1.5 text-gray-800 max-w-[240px] truncate">{r.title}</td>
+                        <td className="px-3 py-1.5 text-gray-800 max-w-[220px] truncate">{r.title}</td>
+                        <td className="px-3 py-1.5 text-gray-500">{r.part || '-'}</td>
                         <td className="px-3 py-1.5 text-gray-500">{r.assigneeName || '-'}</td>
                         <td className="px-3 py-1.5 text-gray-500">{r.priority || 'MEDIUM'}</td>
                       </tr>
