@@ -2,13 +2,14 @@ import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, mem
 import { createPortal, flushSync } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Plus, X, Check, Table2, Bold, Italic, AlignLeft, AlignCenter, AlignRight, ChevronDown, Download, ListTodo } from 'lucide-react';
+import { ArrowLeft, Plus, X, Check, Table2, Bold, Italic, AlignLeft, AlignCenter, AlignRight, ChevronDown, Download, ListTodo, Undo2, Redo2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import { sheetsApi } from '../../api/sheets';
 import { tasksApi, type BulkTaskRow } from '../../api/tasks';
 import { getAccessToken } from '../../utils/token';
 import { cn } from '../../lib/utils';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type CellStyle = {
@@ -272,6 +273,12 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
   // Undo / Redo history
   const historyRef    = useRef<SheetData[]>([]);
   const historyIdxRef = useRef(-1);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const syncHist = useCallback(() => {
+    setCanUndo(historyIdxRef.current > 0);
+    setCanRedo(historyIdxRef.current >= 0 && historyIdxRef.current < historyRef.current.length - 1);
+  }, []);
 
   const recordChange = useCallback((newData: SheetData) => {
     if (historyIdxRef.current === -1) {
@@ -283,7 +290,23 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
     if (historyRef.current.length > 100) historyRef.current.shift();
     else historyIdxRef.current++;
     onChangeRef.current(newData);
-  }, []);
+    syncHist();
+  }, [syncHist]);
+
+  const undo = useCallback(() => {
+    if (historyIdxRef.current > 0) {
+      historyIdxRef.current--;
+      onChangeRef.current(JSON.parse(JSON.stringify(historyRef.current[historyIdxRef.current])));
+      syncHist();
+    }
+  }, [syncHist]);
+  const redo = useCallback(() => {
+    if (historyIdxRef.current < historyRef.current.length - 1) {
+      historyIdxRef.current++;
+      onChangeRef.current(JSON.parse(JSON.stringify(historyRef.current[historyIdxRef.current])));
+      syncHist();
+    }
+  }, [syncHist]);
 
   const range = getRange(selStart, selEnd);
   const colW = (c: number) => colWidths[c] ?? DCW;
@@ -573,22 +596,8 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
     const d = dataRef.current;
 
     if ((e.ctrlKey || e.metaKey) && !editingRef.current) {
-      if (e.key === 'z' || e.key === 'Z') {
-        e.preventDefault();
-        if (historyIdxRef.current > 0) {
-          historyIdxRef.current--;
-          onChangeRef.current(JSON.parse(JSON.stringify(historyRef.current[historyIdxRef.current])));
-        }
-        return;
-      }
-      if (e.key === 'y' || e.key === 'Y') {
-        e.preventDefault();
-        if (historyIdxRef.current < historyRef.current.length - 1) {
-          historyIdxRef.current++;
-          onChangeRef.current(JSON.parse(JSON.stringify(historyRef.current[historyIdxRef.current])));
-        }
-        return;
-      }
+      if (e.key === 'z' || e.key === 'Z') { e.preventDefault(); undo(); return; }
+      if (e.key === 'y' || e.key === 'Y') { e.preventDefault(); redo(); return; }
       if (e.key === 'b' || e.key === 'B') { e.preventDefault(); applyStyle({ bold: !activeStyle.bold }); return; }
       if (e.key === 'i' || e.key === 'I') { e.preventDefault(); applyStyle({ italic: !activeStyle.italic }); return; }
 
@@ -670,7 +679,7 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
       flushSync(() => { setEditing(true); });
       inputRef.current?.focus();
     }
-  }, [activeStyle, applyStyle, commitEdit, rows, cols, recordChange, writeClipboard]);
+  }, [activeStyle, applyStyle, commitEdit, rows, cols, recordChange, writeClipboard, undo, redo]);
 
   // 이벤트 위임 — tbody 하나의 핸들러로 모든 셀 이벤트 처리 (셀별 콜백 2600개 생성 방지)
   const onTbodyMouseDown = useCallback((e: React.MouseEvent<HTMLTableSectionElement>) => {
@@ -968,6 +977,13 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
     <div className="flex flex-col flex-1 overflow-hidden">
       {/* ── Toolbar ── */}
       <div className="flex-shrink-0 flex items-center gap-0.5 px-3 h-10 border-b border-gray-200 bg-white overflow-x-auto">
+        <button onClick={undo} disabled={!canUndo}
+          className="px-1.5 py-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent flex-shrink-0 text-gray-600"
+          title="실행 취소 (Ctrl+Z)"><Undo2 size={14} /></button>
+        <button onClick={redo} disabled={!canRedo}
+          className="px-1.5 py-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent flex-shrink-0 text-gray-600"
+          title="다시 실행 (Ctrl+Y)"><Redo2 size={14} /></button>
+        {sep}
         <button onClick={() => applyStyle({ bold: !activeStyle.bold })}
           className={cn('px-1.5 py-1 rounded text-sm font-bold hover:bg-gray-100 flex-shrink-0', activeStyle.bold && 'bg-primary-100 text-gray-800')}
           title="굵게 (Ctrl+B)"><Bold size={14} /></button>
@@ -1267,6 +1283,8 @@ export function SheetEditorPage() {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const sheetDataRef = useRef<SheetData>(emptyData());
   const dataLoadedRef = useRef(false);
+  const lastServerUpdatedAt = useRef<string>(''); // 낙관적 락용 — 마지막으로 본 서버 버전
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const { data: sheets = [] } = useQuery({
     queryKey: ['sheets', projectId],
@@ -1283,6 +1301,7 @@ export function SheetEditorPage() {
   });
 
   useEffect(() => {
+    if (rawSheet?.updatedAt) lastServerUpdatedAt.current = rawSheet.updatedAt;
     if (rawSheet?.data) {
       const d = rawSheet.data as any;
       const parsed: SheetData = {
@@ -1301,10 +1320,27 @@ export function SheetEditorPage() {
   }, [rawSheet]);
 
   const saveMutation = useMutation({
-    mutationFn: (d: SheetData) => sheetsApi.save(projectId!, sheetId!, d),
+    // 마지막으로 본 서버 버전을 함께 보내 낙관적 락 검증
+    mutationFn: (d: SheetData) => sheetsApi.save(projectId!, sheetId!, d, lastServerUpdatedAt.current || undefined),
     onMutate: () => setSaving(true),
+    onSuccess: (updated: any) => { if (updated?.updatedAt) lastServerUpdatedAt.current = updated.updatedAt; },
     onSettled: () => setSaving(false),
-    onError: () => toast.error('저장에 실패했습니다.'),
+    onError: (err: any) => {
+      if (err?.response?.status === 409) {
+        // 낙관적 락 충돌: 다른 사용자가 먼저 저장 → 덮어쓰지 않고 최신으로 갱신 + 경고
+        toast('다른 사용자가 먼저 수정해 최신 내용으로 갱신합니다.', { icon: '⚠️', id: 'sheet-conflict' });
+        qc.invalidateQueries({ queryKey: ['sheet', projectId, sheetId] });
+      } else {
+        // 네트워크 등 일시 오류: 3초 후 1회 자동 재시도(데이터 유실 방지)
+        toast.error('저장 실패 — 잠시 후 다시 시도합니다.', { id: 'sheet-save-err' });
+        clearTimeout(saveTimer.current);
+        saveTimer.current = setTimeout(() => {
+          sheetsApi.save(projectId!, sheetId!, sheetDataRef.current, lastServerUpdatedAt.current || undefined)
+            .then((u: any) => { if (u?.updatedAt) lastServerUpdatedAt.current = u.updatedAt; })
+            .catch(() => toast.error('저장에 실패했습니다.', { id: 'sheet-save-err' }));
+        }, 3000);
+      }
+    },
   });
 
   const bulkCreateMutation = useMutation({
@@ -1330,7 +1366,9 @@ export function SheetEditorPage() {
     const latest = sheetDataRef.current;
     qc.setQueryData(['sheet', projectId, sheetId], (old: any) =>
       old ? { ...old, data: latest } : old);
-    sheetsApi.save(projectId, sheetId, latest).catch((e) => console.error('시트 저장 실패', e));
+    sheetsApi.save(projectId, sheetId, latest, lastServerUpdatedAt.current || undefined)
+      .then((u: any) => { if (u?.updatedAt) lastServerUpdatedAt.current = u.updatedAt; })
+      .catch((e) => console.error('시트 저장 실패', e));
   }, [projectId, sheetId, qc]);
 
   useEffect(() => {
@@ -1346,7 +1384,7 @@ export function SheetEditorPage() {
         fetch(`/api/projects/${projectId}/sheets/${sheetId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ data: sheetDataRef.current }),
+          body: JSON.stringify({ data: sheetDataRef.current, baseUpdatedAt: lastServerUpdatedAt.current || undefined }),
           keepalive: true,
         });
       } catch { /* noop */ }
@@ -1391,15 +1429,28 @@ export function SheetEditorPage() {
 
   const currentSheet = sheets.find((s: any) => s.id === sheetId);
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
     const wb = XLSX.utils.book_new();
-
+    const loadingId = toast.loading('엑셀 파일을 준비하는 중...');
+    try {
     for (const sheet of sheets) {
-      const isActive = sheet.id === sheetId;
-      const d: SheetData = isActive ? sheetData : emptyData();
+      // 활성 시트는 편집 중인 메모리 데이터, 나머지 시트는 서버에서 직접 로드해 함께 내보냄
+      let d: SheetData;
+      if (sheet.id === sheetId) {
+        d = sheetData;
+      } else {
+        try {
+          const raw = await sheetsApi.get(projectId!, sheet.id);
+          const rd = raw?.data as any;
+          d = rd ? {
+            cells: rd.cells ?? {}, rows: rd.rows ?? DROWS, cols: rd.cols ?? DCOLS,
+            colWidths: rd.colWidths ?? {}, merges: rd.merges ?? {},
+          } : emptyData();
+        } catch { d = emptyData(); }
+      }
 
       const keys = Object.keys(d.cells);
-      if (keys.length === 0 && !isActive) {
+      if (keys.length === 0) {
         const ws = XLSX.utils.aoa_to_sheet([[]]);
         XLSX.utils.book_append_sheet(wb, ws, sheet.name);
         continue;
@@ -1458,7 +1509,10 @@ export function SheetEditorPage() {
 
     const filename = `${currentSheet?.name ?? '시트'}.xlsx`;
     XLSX.writeFile(wb, filename, { bookType: 'xlsx', cellStyles: true });
-    toast.success(`${filename} 다운로드 완료`);
+    toast.success(`${filename} 다운로드 완료`, { id: loadingId });
+    } catch {
+      toast.error('엑셀 다운로드에 실패했습니다.', { id: loadingId });
+    }
   };
 
   return (
@@ -1702,7 +1756,7 @@ export function SheetEditorPage() {
                 className="w-24 text-xs border border-emerald-400 rounded px-1 outline-none bg-white" />
             ) : <span>{sheet.name}</span>}
             {sheets.length > 1 && (
-              <button onClick={e => { e.stopPropagation(); if (confirm(`"${sheet.name}"을 삭제하시겠습니까?`)) deleteSheet.mutate(sheet.id); }}
+              <button onClick={e => { e.stopPropagation(); setDeleteTarget({ id: sheet.id, name: sheet.name }); }}
                 className="hidden group-hover:flex items-center justify-center w-3.5 h-3.5 rounded-full hover:bg-red-100 hover:text-red-500 text-gray-400">
                 <X size={9} />
               </button>
@@ -1726,6 +1780,16 @@ export function SheetEditorPage() {
             title="새 시트 추가"><Plus size={14} /></button>
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="시트 삭제"
+        message={`"${deleteTarget?.name}" 시트를 삭제하시겠습니까?`}
+        confirmText="삭제"
+        tone="danger"
+        onConfirm={() => { if (deleteTarget) deleteSheet.mutate(deleteTarget.id); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

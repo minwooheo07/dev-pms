@@ -10,8 +10,8 @@ export const sheetsApi = {
   get: (projectId: string, sheetId: string) =>
     api.get(`/projects/${projectId}/sheets/${sheetId}`).then((r) => r.data),
 
-  save: (projectId: string, sheetId: string, data: any) =>
-    api.put(`/projects/${projectId}/sheets/${sheetId}`, { data }).then((r) => r.data),
+  save: (projectId: string, sheetId: string, data: any, baseUpdatedAt?: string) =>
+    api.put(`/projects/${projectId}/sheets/${sheetId}`, { data, baseUpdatedAt }).then((r) => r.data),
 
   rename: (projectId: string, sheetId: string, name: string) =>
     api.put(`/projects/${projectId}/sheets/${sheetId}/rename`, { name }).then((r) => r.data),
