@@ -174,9 +174,13 @@ export function KanbanPage() {
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-400 hidden sm:inline">각 컬럼의 + 버튼으로 태스크를 추가하세요</span>
           {canManage && (
-            <Button size="sm" variant="outline" onClick={() => setShowBulkImport(true)}>
-              <FileSpreadsheet size={14} className="mr-1" /> 엑셀 일괄등록
-            </Button>
+            <button
+              onClick={() => setShowBulkImport(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold text-gray-600 bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300 rounded-lg shadow-sm transition-colors"
+            >
+              <FileSpreadsheet size={15} className="text-emerald-600" />
+              엑셀 일괄등록
+            </button>
           )}
         </div>
       </div>
