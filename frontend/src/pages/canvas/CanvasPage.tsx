@@ -482,7 +482,14 @@ const EMPTY_NODES: Node[] = [];
 const EMPTY_EDGES: any[] = [];
 
 // ── 이모지 팔레트 ─────────────────────────────────
-const EMOJIS = ['😀','😎','🎉','🔥','✅','❌','⚠️','💡','🚀','❤️','⭐','🎯','📌','🔑','💬','🏆','👍','🤔','📊','🛠️'];
+const EMOJIS = [
+  '😀','😄','😅','😂','🙂','😉','😎','🤔','😴','😭','😡','😱','🥳','🎉',
+  '👍','👎','👏','🙏','💪','🙌','👀',
+  '❤️','🧡','💛','💚','💙','💜','🤍','⭐','✨','🔥',
+  '✅','❌','⚠️','❓','❗','💯','🚫','🔒','🔓','⏰',
+  '💡','🚀','🎯','📌','🔑','💬','🏆','📊','📈','📉','🛠️','📅','📁','📎','🔔',
+  '➡️','⬅️','⬆️','⬇️','🔄',
+];
 
 // ── 색상 팔레트 ───────────────────────────────────
 const BG_COLORS = [
@@ -782,19 +789,19 @@ export function CanvasPage() {
       lastSavedRef.current = cur;
       const cleanNodes = latestNodes.map(({ selected: _, ...n }) => n);
       const cleanEdges = latestEdges.map(({ selected: _, ...e }) => e);
-      // 캐시도 즉시 갱신 — staleTime(30s) 내 빠른 복귀 시 서버 왕복 전에도 최신 내용이 보이도록
-      const nowIso = new Date().toISOString();
-      qc.setQueryData(['canvas', projectId, canvasId], (old: any) =>
-        old ? { ...old, data: { nodes: cleanNodes, edges: cleanEdges }, updatedAt: nowIso } : old);
-      lastServerUpdatedAt.current = nowIso;
       const token = getAccessToken();
       fetch(`/api/projects/${projectId}/canvases/${canvasId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token ?? ''}` },
-        // 이탈 저장에도 버전을 실어 보냄 → 충돌(409) 시 서버가 저장을 거부해 남의 변경을 덮어쓰지 않음
+        // baseUpdatedAt은 마지막으로 본 "실제 서버 버전"을 보낸다. (이전엔 클라가 만든 nowIso를 보내
+        //  서버 버전과 항상 어긋나 409가 났고, 재진입 시 옛 서버본으로 롤백되며 '다른 사람이 수정함'
+        //  토스트 + 도형 위치가 되돌아가는 버그가 있었음)
         body: JSON.stringify({ data: { nodes: cleanNodes, edges: cleanEdges }, baseUpdatedAt: lastServerUpdatedAt.current || undefined }),
         keepalive: true,
       });
+      // keepalive 응답으로 새 버전을 받을 수 없으므로, 다음 진입 시 서버에서 최신을 다시 받아
+      // 버전(updatedAt)을 정확히 동기화하도록 stale 처리한다.
+      qc.invalidateQueries({ queryKey: ['canvas', projectId, canvasId] });
     };
   }, [projectId, canvasId]);
 
@@ -1202,8 +1209,8 @@ export function CanvasPage() {
             <Smile size={14} /> 이모지
           </button>
           {showEmoji && (
-            <div className="absolute top-10 left-0 z-50 bg-white border border-gray-200 rounded-xl shadow-xl p-3 w-56">
-              <div className="grid grid-cols-5 gap-1">
+            <div className="absolute top-10 left-0 z-50 bg-white border border-gray-200 rounded-xl shadow-xl p-3 w-64 max-h-72 overflow-y-auto">
+              <div className="grid grid-cols-6 gap-1">
                 {EMOJIS.map((e) => (
                   <button
                     key={e}

@@ -1323,7 +1323,14 @@ export function SheetEditorPage() {
     // 마지막으로 본 서버 버전을 함께 보내 낙관적 락 검증
     mutationFn: (d: SheetData) => sheetsApi.save(projectId!, sheetId!, d, lastServerUpdatedAt.current || undefined),
     onMutate: () => setSaving(true),
-    onSuccess: (updated: any) => { if (updated?.updatedAt) lastServerUpdatedAt.current = updated.updatedAt; },
+    onSuccess: (updated: any) => {
+      if (updated?.updatedAt) {
+        lastServerUpdatedAt.current = updated.updatedAt;
+        // 캐시 updatedAt도 동기화 — refetchOnMount:false라 재진입 시 캐시를 그대로 쓰므로
+        // 여기서 안 맞추면 다음 저장의 baseUpdatedAt이 어긋나 잘못된 409(충돌)가 발생
+        qc.setQueryData(['sheet', projectId, sheetId], (old: any) => old ? { ...old, updatedAt: updated.updatedAt } : old);
+      }
+    },
     onSettled: () => setSaving(false),
     onError: (err: any) => {
       if (err?.response?.status === 409) {
@@ -1367,7 +1374,12 @@ export function SheetEditorPage() {
     qc.setQueryData(['sheet', projectId, sheetId], (old: any) =>
       old ? { ...old, data: latest } : old);
     sheetsApi.save(projectId, sheetId, latest, lastServerUpdatedAt.current || undefined)
-      .then((u: any) => { if (u?.updatedAt) lastServerUpdatedAt.current = u.updatedAt; })
+      .then((u: any) => {
+        if (u?.updatedAt) {
+          lastServerUpdatedAt.current = u.updatedAt;
+          qc.setQueryData(['sheet', projectId, sheetId], (old: any) => old ? { ...old, updatedAt: u.updatedAt } : old);
+        }
+      })
       .catch((e) => console.error('시트 저장 실패', e));
   }, [projectId, sheetId, qc]);
 
