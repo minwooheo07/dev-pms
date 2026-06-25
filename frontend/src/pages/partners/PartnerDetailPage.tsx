@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronRight, Plus, Users, Trash2, Mail, Phone,
-  Building2, Briefcase, ListChecks,
+  Building2, Briefcase, ListChecks, Pencil,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { partnersApi } from '../../api/partners';
@@ -18,6 +18,8 @@ export function PartnerDetailPage() {
   const qc = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({ name: '', position: '', email: '', phone: '' });
+  const [editPersonnel, setEditPersonnel] = useState<Personnel | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', position: '', email: '', phone: '' });
 
   const { data: partner, isLoading } = useQuery({
     queryKey: ['partner', partnerId],
@@ -34,6 +36,17 @@ export function PartnerDetailPage() {
       toast.success('인력이 등록되었습니다.');
     },
     onError: () => toast.error('등록에 실패했습니다.'),
+  });
+
+  const updatePersonnel = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<Personnel> }) =>
+      partnersApi.updatePersonnel(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['partner', partnerId] });
+      setEditPersonnel(null);
+      toast.success('인력 정보가 수정되었습니다.');
+    },
+    onError: () => toast.error('수정에 실패했습니다.'),
   });
 
   const deletePersonnel = useMutation({
@@ -117,17 +130,46 @@ export function PartnerDetailPage() {
                     )}
                   </div>
                 </div>
-                <button
-                  onClick={() => { if (confirm(`"${person.name}" 인력을 삭제하시겠습니까?`)) deletePersonnel.mutate(person.id); }}
-                  className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto text-gray-400 hover:text-red-500 p-1.5 transition-all cursor-pointer"
-                >
-                  <Trash2 size={14} />
-                </button>
+                <div className="flex items-center gap-0.5 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all">
+                  <button
+                    onClick={() => { setEditPersonnel(person); setEditForm({ name: person.name ?? '', position: person.position ?? '', email: person.email ?? '', phone: person.phone ?? '' }); }}
+                    className="text-gray-400 hover:text-primary-600 p-1.5 cursor-pointer"
+                    title="수정"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    onClick={() => { if (confirm(`"${person.name}" 인력을 삭제하시겠습니까?`)) deletePersonnel.mutate(person.id); }}
+                    className="text-gray-400 hover:text-red-500 p-1.5 cursor-pointer"
+                    title="삭제"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Edit personnel modal */}
+      <Modal open={!!editPersonnel} onClose={() => setEditPersonnel(null)} title="인력 수정">
+        <form
+          onSubmit={(e) => { e.preventDefault(); if (editPersonnel && editForm.name.trim()) updatePersonnel.mutate({ id: editPersonnel.id, data: editForm }); }}
+          className="p-6 space-y-4"
+        >
+          <div className="flex gap-4">
+            <Input label="이름 *" placeholder="홍길동" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} required className="flex-1" />
+            <Input label="직무" placeholder="백엔드 개발자" value={editForm.position} onChange={(e) => setEditForm({ ...editForm, position: e.target.value })} className="flex-1" />
+          </div>
+          <Input label="이메일" type="email" placeholder="person@partner.com" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
+          <Input label="연락처" placeholder="010-1234-5678" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="secondary" onClick={() => setEditPersonnel(null)}>취소</Button>
+            <Button type="submit" variant="primary" loading={updatePersonnel.isPending}>저장</Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Add personnel modal */}
       <Modal open={addOpen} onClose={() => setAddOpen(false)} title="인력 등록">
