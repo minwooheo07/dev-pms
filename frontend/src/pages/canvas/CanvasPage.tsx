@@ -429,11 +429,20 @@ function ImageNode({ id, data, selected }: any) {
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setNodes((ns) => ns.map((n) => n.id === id ? { ...n, data: { ...n.data, src: reader.result as string } } : n));
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const MAX = 1200;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const src = canvas.toDataURL('image/jpeg', 0.8);
+      setNodes((ns) => ns.map((n) => n.id === id ? { ...n, data: { ...n.data, src } } : n));
     };
-    reader.readAsDataURL(file);
+    img.src = objectUrl;
   };
   return (
     <>
