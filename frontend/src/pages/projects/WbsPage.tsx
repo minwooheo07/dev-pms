@@ -464,7 +464,7 @@ export function WbsPage() {
                         )}
                       >
                         {isOverdue && (
-                          <span aria-hidden className="absolute inset-0 rounded bg-red-200/70 animate-pulse pointer-events-none" />
+                          <span aria-hidden className="absolute inset-0 rounded border border-red-400 animate-pulse pointer-events-none" />
                         )}
                         <span className="relative block truncate">{item.title}</span>
                       </span>
