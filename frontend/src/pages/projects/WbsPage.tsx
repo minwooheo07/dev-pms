@@ -252,6 +252,29 @@ export function WbsPage() {
     XLSX.writeFile(wb, 'wbs_template.xlsx');
   };
 
+  const exportWbs = () => {
+    if (!rawItems.length) { toast.error('내보낼 WBS 항목이 없습니다.'); return; }
+    const aoa = [
+      ['WBS', '단계', '업무명', '담당자', '시작일', '종료일', '진행률', '상태', '비고'],
+      ...rawItems.map((item) => [
+        wbsNumbers.get(item.id) ?? '',
+        item.depth,
+        item.title, // 들여쓰기 없이 순수 제목 → 다시 가져오기 시 호환
+        item.assignee ?? '',
+        item.startDate ? item.startDate.slice(0, 10) : '',
+        item.endDate ? item.endDate.slice(0, 10) : '',
+        item.progress,
+        STATUS_CONFIG[item.status ?? 'NOT_STARTED'].label,
+        item.note ?? '',
+      ]),
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{ wch: 8 }, { wch: 5 }, { wch: 30 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 20 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'WBS');
+    XLSX.writeFile(wb, 'wbs.xlsx');
+  };
+
   const reorderMutation = useMutation({
     mutationFn: (items: { id: string; order: number; parentId: string | null; depth: number }[]) =>
       wbsApi.reorder(projectId!, items),
@@ -371,11 +394,24 @@ export function WbsPage() {
     setDragId(null); setDragOverId(null);
     if (!currentDragId || currentDragId === targetId) return;
     const from = rawItems.findIndex((i) => i.id === currentDragId);
-    const to = rawItems.findIndex((i) => i.id === targetId);
-    if (from === -1 || to === -1) return;
-    const reordered = [...rawItems];
-    const [moved] = reordered.splice(from, 1);
-    reordered.splice(to, 0, moved);
+    if (from === -1) return;
+
+    // 드래그한 항목 + 그 하위 서브트리(더 깊은 depth가 연속되는 구간) 전체를 한 블록으로 이동.
+    // 부모만 옮기고 자식은 남겨 트리가 분리되던 버그 방지.
+    const dragged = rawItems[from];
+    const block: WbsItem[] = [dragged];
+    for (let i = from + 1; i < rawItems.length; i++) {
+      if (rawItems[i].depth > dragged.depth) block.push(rawItems[i]);
+      else break;
+    }
+    const blockIds = new Set(block.map((b) => b.id));
+    // 자기 자신·자손 위로는 드롭 불가
+    if (blockIds.has(targetId)) return;
+
+    const rest = rawItems.filter((i) => !blockIds.has(i.id));
+    const insertAt = rest.findIndex((i) => i.id === targetId);
+    if (insertAt === -1) return;
+    const reordered = [...rest.slice(0, insertAt), ...block, ...rest.slice(insertAt)];
     const updates = reordered.map((item, idx) => ({
       id: item.id, order: idx, parentId: item.parentId ?? null, depth: item.depth,
     }));
@@ -407,8 +443,10 @@ export function WbsPage() {
     </div>
   );
 
-  const totalAvg = rawItems.length
-    ? Math.round(rawItems.reduce((s, i) => s + i.progress, 0) / rawItems.length)
+  // 전체 진행률은 말단(leaf) 항목만 평균 — 부모는 자식 평균을 이미 반영하므로 중복 가중 방지
+  const leafItems = rawItems.filter((i) => !rawItems.some((c) => c.parentId === i.id));
+  const totalAvg = leafItems.length
+    ? Math.round(leafItems.reduce((s, i) => s + i.progress, 0) / leafItems.length)
     : 0;
 
   return (
@@ -426,6 +464,13 @@ export function WbsPage() {
           >
             <FileSpreadsheet size={15} className="text-emerald-600" />
             엑셀 가져오기
+          </button>
+          <button
+            onClick={exportWbs}
+            className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold text-gray-600 bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300 rounded-lg shadow-sm transition-colors"
+          >
+            <Download size={15} className="text-gray-500" />
+            엑셀 내보내기
           </button>
           <button
             onClick={() => addRow()}

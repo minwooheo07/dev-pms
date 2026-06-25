@@ -192,7 +192,7 @@ export function GanttPage() {
       qc.invalidateQueries({ queryKey: ['gantt', projectId] });
       qc.invalidateQueries({ queryKey: ['project-stats', projectId] });
     };
-    es.onerror = () => {};
+    es.onerror = () => es.close();
     return () => es.close();
   }, [projectId, qc]);
 
@@ -229,9 +229,17 @@ export function GanttPage() {
       setDragIndex(null); setOverIndex(null);
       return;
     }
+    // dragIndex/overIndex는 화면(필터된 displayTasks) 기준이므로 id로 변환해 전체(ordered)에 반영.
+    // (필터 켠 상태에서 인덱스를 그대로 ordered에 쓰면 엉뚱한 태스크가 이동되는 버그 방지)
+    const movedId = displayTasks[dragIndex]?.id;
+    const overId = displayTasks[overIndex]?.id;
+    if (!movedId || !overId) { setDragIndex(null); setOverIndex(null); return; }
+    const from = ordered.findIndex((t) => t.id === movedId);
+    const to = ordered.findIndex((t) => t.id === overId);
+    if (from === -1 || to === -1) { setDragIndex(null); setOverIndex(null); return; }
     const next = [...ordered];
-    const [moved] = next.splice(dragIndex, 1);
-    next.splice(overIndex, 0, moved);
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
     setOrdered(next);
     qc.setQueryData(['gantt', projectId], next);
     reorder.mutate(next.map((t) => t.id));
