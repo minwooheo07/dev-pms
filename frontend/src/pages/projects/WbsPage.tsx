@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, ChevronRight, ChevronDown, IndentIncrease, IndentDecrease, GripVertical } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, ChevronDown, IndentIncrease, IndentDecrease, GripVertical, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { wbsApi, type WbsItem, type WbsStatus } from '../../api/wbs';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -76,6 +76,65 @@ interface EditState {
   id: string;
   field: 'title' | 'assignee' | 'startDate' | 'endDate' | 'note';
   value: string;
+}
+
+// 숫자만 입력받아 YYYY-MM-DD 형태로 구분자 자동 삽입 (연도 입력 후 월/일로 자동 진행)
+function formatDateInput(raw: string): string {
+  const d = raw.replace(/\D/g, '').slice(0, 8);
+  return [d.slice(0, 4), d.slice(4, 6), d.slice(6, 8)].filter(Boolean).join('-');
+}
+
+function isValidDate(s: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return false;
+  const y = +m[1], mo = +m[2], d = +m[3];
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return false;
+  const dt = new Date(y, mo - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d;
+}
+
+// WBS 날짜 인라인 에디터 — 키보드 자동 포맷 입력 + 달력 버튼(네이티브 픽커)
+function WbsDateEditor({ value, onChange, onCommit, onCancel, inputRef }: {
+  value: string;
+  onChange: (v: string) => void;
+  onCommit: () => void;
+  onCancel: () => void;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+}) {
+  const pickerRef = useRef<HTMLInputElement>(null);
+  return (
+    <div className="relative flex items-center gap-1 w-full">
+      <input
+        ref={inputRef}
+        value={value}
+        inputMode="numeric"
+        placeholder="YYYY-MM-DD"
+        maxLength={10}
+        onChange={(e) => onChange(formatDateInput(e.target.value))}
+        onBlur={onCommit}
+        onKeyDown={(e) => { if (e.key === 'Enter') onCommit(); if (e.key === 'Escape') onCancel(); }}
+        className="w-full text-xs bg-white border border-primary-400 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-primary-200"
+      />
+      <button
+        type="button"
+        title="달력에서 선택"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => pickerRef.current?.showPicker?.()}
+        className="flex-shrink-0 text-gray-400 hover:text-primary-600 transition-colors"
+      >
+        <Calendar size={14} />
+      </button>
+      <input
+        ref={pickerRef}
+        type="date"
+        value={isValidDate(value) ? value : ''}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onCommit}
+        tabIndex={-1}
+        className="absolute right-0 bottom-0 w-0 h-0 opacity-0 pointer-events-none"
+      />
+    </div>
+  );
 }
 
 export function WbsPage() {
@@ -158,9 +217,7 @@ export function WbsPage() {
     setEditState({ id, field, value });
     setTimeout(() => {
       inputRef.current?.focus();
-      if (field === 'startDate' || field === 'endDate') {
-        (inputRef.current as HTMLInputElement | null)?.showPicker?.();
-      }
+      inputRef.current?.select?.();
     }, 0);
   };
 
@@ -173,6 +230,8 @@ export function WbsPage() {
     if (field === 'title' && !trimmed) { setEditState(null); return; }
     let data: Partial<WbsItem> = {};
     if (field === 'startDate' || field === 'endDate') {
+      // 미완성/잘못된 날짜는 저장하지 않고 편집 취소
+      if (trimmed && !isValidDate(trimmed)) { setEditState(null); return; }
       data = { [field]: trimmed || null } as any;
     } else {
       data = { [field]: trimmed || null } as any;
@@ -433,14 +492,12 @@ export function WbsPage() {
                   {/* 시작일 */}
                   <div className={cn('px-3 py-0 border-r border-gray-100 flex items-center', COLS[3].w)} style={{ minHeight: 44 }}>
                     {isEditing('startDate') ? (
-                      <input
-                        ref={inputRef}
-                        type="date"
+                      <WbsDateEditor
                         value={editState!.value}
-                        onChange={(e) => setEditState({ ...editState!, value: e.target.value })}
-                        onBlur={commitEdit}
-                        onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditState(null); }}
-                        className="w-full text-xs bg-white border border-primary-400 rounded px-2 py-1 outline-none"
+                        onChange={(v) => setEditState({ ...editState!, value: v })}
+                        onCommit={commitEdit}
+                        onCancel={() => setEditState(null)}
+                        inputRef={inputRef}
                       />
                     ) : (
                       <span
@@ -455,14 +512,12 @@ export function WbsPage() {
                   {/* 종료일 + D-Day */}
                   <div className={cn('px-3 py-0 border-r border-gray-100 flex items-center gap-1.5', COLS[4].w)} style={{ minHeight: 44 }}>
                     {isEditing('endDate') ? (
-                      <input
-                        ref={inputRef}
-                        type="date"
+                      <WbsDateEditor
                         value={editState!.value}
-                        onChange={(e) => setEditState({ ...editState!, value: e.target.value })}
-                        onBlur={commitEdit}
-                        onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditState(null); }}
-                        className="w-full text-xs bg-white border border-primary-400 rounded px-2 py-1 outline-none"
+                        onChange={(v) => setEditState({ ...editState!, value: v })}
+                        onCommit={commitEdit}
+                        onCancel={() => setEditState(null)}
+                        inputRef={inputRef}
                       />
                     ) : (
                       <>
