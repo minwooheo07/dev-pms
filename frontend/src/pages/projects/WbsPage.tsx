@@ -1,8 +1,9 @@
 import { useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, ChevronRight, ChevronDown, IndentIncrease, IndentDecrease, GripVertical, Calendar } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, ChevronDown, IndentIncrease, IndentDecrease, GripVertical, Calendar, Upload, Download, FileSpreadsheet, X, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
+import * as XLSX from 'xlsx';
 import { wbsApi, type WbsItem, type WbsStatus } from '../../api/wbs';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { cn, formatDate } from '../../lib/utils';
@@ -147,6 +148,10 @@ export function WbsPage() {
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importRows, setImportRows] = useState<Partial<WbsItem>[] | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const { data: rawItems = [], isLoading } = useQuery({
     queryKey: ['wbs', projectId],
@@ -174,6 +179,78 @@ export function WbsPage() {
     onSuccess: invalidate,
     onError: () => toast.error('삭제 실패'),
   });
+
+  const bulkCreateMutation = useMutation({
+    mutationFn: (items: Partial<WbsItem>[]) => wbsApi.bulkCreate(projectId!, items),
+    onSuccess: (res) => {
+      invalidate();
+      setImportOpen(false);
+      setImportRows(null);
+      toast.success(`WBS ${res.count}개 항목이 추가되었습니다.`);
+    },
+    onError: () => toast.error('가져오기에 실패했습니다.'),
+  });
+
+  const STATUS_KO_MAP: Record<string, WbsStatus> = {
+    '진행전': 'NOT_STARTED', '진행 전': 'NOT_STARTED',
+    '진행중': 'IN_PROGRESS', '진행 중': 'IN_PROGRESS',
+    '완료': 'DONE', '보류': 'ON_HOLD',
+  };
+
+  const parseExcelFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(e.target!.result, { type: 'array', cellDates: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        if (!rows.length) { toast.error('데이터가 없습니다.'); return; }
+
+        const HEADER: Record<string, string> = {
+          '업무명': 'title', '단계': 'depth', '깊이': 'depth',
+          '담당자': 'assignee', '시작일': 'startDate', '종료일': 'endDate',
+          '진행률': 'progress', '상태': 'status', '비고': 'note',
+        };
+
+        const parsed: Partial<WbsItem>[] = rows.map((row) => {
+          const item: any = {};
+          for (const [k, v] of Object.entries(row)) {
+            const field = HEADER[k.trim()];
+            if (!field || v === '' || v == null) continue;
+            if (field === 'depth') item.depth = Math.min(2, Math.max(0, Number(v)));
+            else if (field === 'progress') item.progress = Math.min(100, Math.max(0, Number(v)));
+            else if (field === 'status') item.status = STATUS_KO_MAP[String(v).trim()] ?? (Object.values(STATUS_KO_MAP).includes(v as any) ? v : 'NOT_STARTED');
+            else if (field === 'startDate' || field === 'endDate') {
+              const d = v instanceof Date ? v : new Date(String(v));
+              if (!isNaN(d.getTime())) item[field] = d.toISOString().slice(0, 10);
+            } else item[field] = String(v).trim();
+          }
+          return item;
+        }).filter((i) => i.title);
+
+        if (!parsed.length) { toast.error('업무명 열을 찾을 수 없습니다.'); return; }
+        setImportRows(parsed);
+      } catch {
+        toast.error('파일을 읽을 수 없습니다.');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const downloadTemplate = () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['단계', '업무명', '담당자', '시작일', '종료일', '진행률', '상태', '비고'],
+      [0, '기획', '홍길동', '2025-01-01', '2025-01-31', 0, '진행 전', ''],
+      [1, '요구사항 분석', '홍길동', '2025-01-01', '2025-01-10', 50, '진행 중', ''],
+      [1, '화면설계', '김철수', '2025-01-11', '2025-01-20', 0, '진행 전', ''],
+      [0, '개발', '', '2025-02-01', '2025-03-31', 0, '진행 전', ''],
+      [1, '백엔드 개발', '이영희', '2025-02-01', '2025-02-28', 0, '진행 전', ''],
+      [2, 'API 설계', '이영희', '2025-02-01', '2025-02-07', 0, '진행 전', ''],
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'WBS');
+    XLSX.writeFile(wb, 'wbs_template.xlsx');
+  };
 
   const reorderMutation = useMutation({
     mutationFn: (items: { id: string; order: number; parentId: string | null; depth: number }[]) =>
@@ -342,13 +419,22 @@ export function WbsPage() {
           <h1 className="text-lg font-bold text-gray-700">WBS</h1>
           <p className="text-xs text-gray-400 mt-0.5">Work Breakdown Structure — 업무 분류 체계</p>
         </div>
-        <button
-          onClick={() => addRow()}
-          className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-lg shadow-sm transition-colors"
-        >
-          <Plus size={15} />
-          항목 추가
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setImportOpen(true); setImportRows(null); }}
+            className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold text-gray-600 bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300 rounded-lg shadow-sm transition-colors"
+          >
+            <FileSpreadsheet size={15} className="text-emerald-600" />
+            엑셀 가져오기
+          </button>
+          <button
+            onClick={() => addRow()}
+            className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-lg shadow-sm transition-colors"
+          >
+            <Plus size={15} />
+            항목 추가
+          </button>
+        </div>
       </div>
 
       {/* Table */}
@@ -697,6 +783,161 @@ export function WbsPage() {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* ── 엑셀 가져오기 모달 ── */}
+      {importOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setImportOpen(false); setImportRows(null); }} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+            {/* 헤더 */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center">
+                  <FileSpreadsheet size={18} className="text-emerald-600" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-gray-800">엑셀로 WBS 가져오기</h2>
+                  <p className="text-[11px] text-gray-400 mt-0.5">아래 형식으로 만든 엑셀을 업로드하면 WBS 항목이 자동 생성됩니다</p>
+                </div>
+              </div>
+              <button onClick={() => { setImportOpen(false); setImportRows(null); }} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              {!importRows ? (
+                <>
+                  {/* 레이아웃 가이드 - 미니 스프레드시트 */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-semibold text-gray-600">📋 엑셀 컬럼 구성</p>
+                      <button
+                        onClick={downloadTemplate}
+                        className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors"
+                      >
+                        <Download size={12} /> 템플릿 다운로드
+                      </button>
+                    </div>
+                    {/* 미니 스프레드시트 미리보기 */}
+                    <div className="rounded-xl border border-gray-200 overflow-hidden text-xs">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-gray-100">
+                            {['단계', '업무명', '담당자', '시작일', '종료일', '진행률', '상태', '비고'].map((h, i) => (
+                              <th key={h} className={cn('px-3 py-2 text-left font-bold border-b border-r border-gray-200 last:border-r-0 whitespace-nowrap', i === 0 ? 'text-primary-600 bg-primary-50' : i === 1 ? 'text-gray-800' : 'text-gray-500 font-medium')}>
+                                {h} {i < 2 && <span className="text-red-400">*</span>}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            ['0', '기획', '홍길동', '2025-01-01', '2025-01-31', '0', '진행 전', ''],
+                            ['1', '요구사항 분석', '홍길동', '2025-01-01', '2025-01-10', '50', '진행 중', ''],
+                            ['1', '화면설계', '김철수', '', '', '0', '진행 전', '검토 필요'],
+                            ['0', '개발', '', '2025-02-01', '', '0', '진행 전', ''],
+                            ['1', '백엔드 개발', '이영희', '', '', '0', '진행 전', ''],
+                            ['2', 'API 설계', '이영희', '', '', '0', '진행 전', ''],
+                          ].map((row, ri) => (
+                            <tr key={ri} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                              {row.map((cell, ci) => (
+                                <td key={ci} className={cn('px-3 py-1.5 border-r border-gray-100 last:border-r-0 text-gray-600',
+                                  ci === 0 && 'font-bold text-center text-primary-600 bg-primary-50/40',
+                                  ci === 1 && cell && `pl-${Number(row[0]) * 4 + 3}`,
+                                )}>
+                                  {ci === 1 && Number(row[0]) > 0 && (
+                                    <span className="inline-block mr-1 text-gray-300">{'└'.repeat(Number(row[0]))}</span>
+                                  )}
+                                  {cell || <span className="text-gray-300">-</span>}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {/* 컬럼 설명 */}
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                      <span className="text-[11px] text-gray-500"><span className="font-semibold text-primary-600">단계</span>: 0=대그룹, 1=중그룹, 2=소그룹</span>
+                      <span className="text-[11px] text-gray-500"><span className="font-semibold">상태</span>: 진행 전 / 진행 중 / 완료 / 보류</span>
+                      <span className="text-[11px] text-gray-500"><span className="font-semibold">진행률</span>: 0~100 숫자</span>
+                      <span className="text-[11px] text-red-400">* 필수</span>
+                    </div>
+                  </div>
+
+                  {/* 파일 업로드 영역 */}
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) parseExcelFile(f); }}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={cn(
+                      'border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all',
+                      dragOver ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 hover:border-emerald-300 hover:bg-gray-50',
+                    )}
+                  >
+                    <Upload size={28} className={cn('mx-auto mb-2', dragOver ? 'text-emerald-500' : 'text-gray-300')} />
+                    <p className="text-sm font-medium text-gray-600">클릭하거나 파일을 드래그하세요</p>
+                    <p className="text-xs text-gray-400 mt-1">.xlsx, .xls 파일 지원</p>
+                    <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) parseExcelFile(f); e.target.value = ''; }} />
+                  </div>
+                </>
+              ) : (
+                /* 파싱 결과 미리보기 */
+                <>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Check size={16} className="text-emerald-500" />
+                    <span className="font-semibold text-gray-700">{importRows.length}개 항목을 읽었습니다</span>
+                    <button onClick={() => setImportRows(null)} className="ml-auto text-xs text-gray-400 hover:text-gray-600 underline">다시 선택</button>
+                  </div>
+                  <div className="border border-gray-200 rounded-xl overflow-hidden">
+                    <div className="max-h-64 overflow-y-auto">
+                      <table className="w-full text-xs border-collapse">
+                        <thead className="sticky top-0 bg-gray-50">
+                          <tr>
+                            {['단계', '업무명', '담당자', '시작일', '종료일', '진행률', '상태'].map((h) => (
+                              <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500 border-b border-gray-200">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {importRows.map((row, i) => (
+                            <tr key={i} className="border-b border-gray-100 last:border-0">
+                              <td className="px-3 py-1.5 font-bold text-primary-600 text-center">{row.depth ?? 0}</td>
+                              <td className="px-3 py-1.5 text-gray-800 font-medium" style={{ paddingLeft: `${(row.depth ?? 0) * 12 + 12}px` }}>
+                                {(row.depth ?? 0) > 0 && <span className="text-gray-300 mr-1">{'└'}</span>}{row.title}
+                              </td>
+                              <td className="px-3 py-1.5 text-gray-500">{row.assignee || '-'}</td>
+                              <td className="px-3 py-1.5 text-gray-500">{row.startDate || '-'}</td>
+                              <td className="px-3 py-1.5 text-gray-500">{row.endDate || '-'}</td>
+                              <td className="px-3 py-1.5 text-gray-500">{row.progress ?? 0}%</td>
+                              <td className="px-3 py-1.5 text-gray-500">{row.status ? STATUS_CONFIG[row.status as WbsStatus]?.label : '진행 전'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* 푸터 */}
+            {importRows && (
+              <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50">
+                <button onClick={() => { setImportOpen(false); setImportRows(null); }} className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">취소</button>
+                <button
+                  onClick={() => bulkCreateMutation.mutate(importRows)}
+                  disabled={bulkCreateMutation.isPending}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 rounded-lg transition-colors"
+                >
+                  <FileSpreadsheet size={14} />
+                  {bulkCreateMutation.isPending ? '추가 중...' : `${importRows.length}개 항목 추가`}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

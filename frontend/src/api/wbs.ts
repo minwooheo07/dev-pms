@@ -30,4 +30,6 @@ export const wbsApi = {
     api.delete(`/projects/${projectId}/wbs/${id}`).then((r) => r.data),
   reorder: (projectId: string, items: { id: string; order: number; parentId: string | null; depth: number }[]) =>
     api.patch(`/projects/${projectId}/wbs/reorder`, { items }).then((r) => r.data as WbsItem[]),
+  bulkCreate: (projectId: string, items: Partial<WbsItem>[]) =>
+    api.post(`/projects/${projectId}/wbs/bulk`, { items }).then((r) => r.data as { count: number }),
 };
