@@ -359,6 +359,28 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
 
   useEffect(() => { if (editing && inputRef.current) inputRef.current.focus(); }, [editing]);
 
+  // 시스템 클립보드 쓰기 — HTTPS/보안 컨텍스트가 아니면(예: HTTP 운영 서버) navigator.clipboard가
+  // 막히므로 임시 textarea + execCommand로 폴백. (내부 복사/붙여넣기 판별이 시스템 클립보드 텍스트에 의존)
+  const writeClipboard = useCallback((text: string) => {
+    const execCopy = () => {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.top = '-9999px';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      try { document.execCommand('copy'); } catch { /* noop */ }
+      document.body.removeChild(ta);
+      containerRef.current?.focus({ preventScroll: true });
+    };
+    if (window.isSecureContext && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).catch(execCopy);
+    } else {
+      execCopy();
+    }
+  }, []);
+
   // 붙여넣기 통합 처리
   // - 시스템 클립보드 텍스트가 내부 복사본과 동일 → 스타일/병합까지 복원 (내부 붙여넣기)
   // - 다르면(엑셀 등 외부에서 복사) → 텍스트만 셀에 채움 (외부 붙여넣기)
@@ -371,18 +393,27 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
     const cb = clipboardRef.current;
     setCopyRange(null);
 
+    // 선택 영역이 클립보드 블록보다 크면 반복해서 채움(fill). 단일 셀 복사 → 범위 선택 후 붙여넣기로 동일 데이터 채우기 지원
+    const sel = getRange(selStartRef.current, selEndRef.current);
+
     // 내부 클립보드(스타일/병합 포함): 시스템 클립보드 텍스트가 내부 복사본과 일치할 때만
     if (cb && cb.text === text.replace(/\r\n/g, '\n')) {
+      let fr = cb.rows, fc = cb.cols;
+      if (sel) {
+        const sh = sel.r2 - sel.r1 + 1, sw = sel.c2 - sel.c1 + 1;
+        if (sh > cb.rows || sw > cb.cols) { fr = Math.max(cb.rows, sh); fc = Math.max(cb.cols, sw); }
+      }
       const newCells = { ...nd.cells };
-      const newMerges = removeOverlap(nd.merges, { r1: pr, c1: pc, r2: pr+cb.rows-1, c2: pc+cb.cols-1 });
-      for (let dr = 0; dr < cb.rows; dr++)
-        for (let dc = 0; dc < cb.cols; dc++) {
+      const newMerges = removeOverlap(nd.merges, { r1: pr, c1: pc, r2: pr+fr-1, c2: pc+fc-1 });
+      for (let dr = 0; dr < fr; dr++)
+        for (let dc = 0; dc < fc; dc++) {
           if (pr+dr >= nd.rows || pc+dc >= nd.cols) continue;
           const dst = ck(pr+dr, pc+dc);
-          const src = ck(dr, dc);
+          const src = ck(dr % cb.rows, dc % cb.cols);
           if (cb.cells[src]) newCells[dst] = { ...cb.cells[src] };
           else delete newCells[dst];
         }
+      // 병합은 기준 블록에만 배치 (반복 채움 시 타일 간 병합 중첩 방지)
       for (const [k, m] of Object.entries(cb.merges)) {
         const [mr, mc] = k.split(',').map(Number);
         if (pr+mr < nd.rows && pc+mc < nd.cols)
@@ -395,15 +426,25 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
     // 외부(엑셀 등) 텍스트 붙여넣기
     const lines = text.split(/\r?\n/).map(l => l.split('\t'));
     if (lines.length > 0 && lines[lines.length - 1].every(v => v === '')) lines.pop();
+    if (lines.length === 0) return;
+    const srcRows = lines.length;
+    const srcCols = Math.max(1, ...lines.map(l => l.length));
+    let fr = srcRows, fc = srcCols;
+    if (sel) {
+      const sh = sel.r2 - sel.r1 + 1, sw = sel.c2 - sel.c1 + 1;
+      if (sh > srcRows || sw > srcCols) { fr = Math.max(srcRows, sh); fc = Math.max(srcCols, sw); }
+    }
     const newCells = { ...nd.cells };
-    lines.forEach((row, dr) => row.forEach((val, dc) => {
-      if (pr + dr >= nd.rows || pc + dc >= nd.cols) return;
-      const dst = ck(pr + dr, pc + dc);
-      const existing = norm(newCells[dst]);
-      if (val) newCells[dst] = { ...existing, v: val };
-      else if (existing.s) newCells[dst] = { s: existing.s };
-      else delete newCells[dst];
-    }));
+    for (let dr = 0; dr < fr; dr++)
+      for (let dc = 0; dc < fc; dc++) {
+        if (pr + dr >= nd.rows || pc + dc >= nd.cols) continue;
+        const val = lines[dr % srcRows]?.[dc % srcCols] ?? '';
+        const dst = ck(pr + dr, pc + dc);
+        const existing = norm(newCells[dst]);
+        if (val) newCells[dst] = { ...existing, v: val };
+        else if (existing.s) newCells[dst] = { s: existing.s };
+        else delete newCells[dst];
+      }
     recordChange({ ...nd, cells: newCells });
   }, [recordChange]);
 
@@ -573,7 +614,7 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
           lines.push(Array.from({ length: rng.c2-rng.c1+1 }, (_, cc) => norm(copyCells[ck(rr,cc)]).v ?? '').join('\t'));
         const text = lines.join('\n');
         clipboardRef.current = { rows: rng.r2-rng.r1+1, cols: rng.c2-rng.c1+1, cells: copyCells, merges: copyMerges, text };
-        navigator.clipboard.writeText(text).catch(() => {});
+        writeClipboard(text);
         return;
       }
 
@@ -629,7 +670,7 @@ export function SpreadsheetGrid({ data, onChange }: { data: SheetData; onChange:
       flushSync(() => { setEditing(true); });
       inputRef.current?.focus();
     }
-  }, [activeStyle, applyStyle, commitEdit, rows, cols, recordChange]);
+  }, [activeStyle, applyStyle, commitEdit, rows, cols, recordChange, writeClipboard]);
 
   // 이벤트 위임 — tbody 하나의 핸들러로 모든 셀 이벤트 처리 (셀별 콜백 2600개 생성 방지)
   const onTbodyMouseDown = useCallback((e: React.MouseEvent<HTMLTableSectionElement>) => {
