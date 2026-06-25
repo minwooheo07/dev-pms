@@ -22,6 +22,7 @@ import {
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../../components/ui/Avatar';
 import { cn } from '../../lib/utils';
+import toast from 'react-hot-toast';
 
 const RESIZER_STYLE = { borderColor: '#e60012', borderWidth: 1 };
 
@@ -516,7 +517,8 @@ export function CanvasPage() {
   });
 
   const saveCanvas = useMutation({
-    mutationFn: (data: any) => canvasApi.save(projectId!, canvasId!, data),
+    // 마지막으로 본 서버 버전(baseUpdatedAt)을 함께 보내 낙관적 락 검증
+    mutationFn: (data: any) => canvasApi.save(projectId!, canvasId!, data, lastServerUpdatedAt.current || undefined),
     onSuccess: (updated: any) => {
       // 저장한 내용으로 캐시 동기화 — 전역 staleTime(30s) 동안 다른 페이지 갔다 복귀 시
       // 옛 캐시가 화면을 덮어쓰는 문제 방지. updatedAt도 기록해 로드 effect의 재적용(선택 초기화) 방지
@@ -527,6 +529,15 @@ export function CanvasPage() {
       // 저장 완료 후 pending 원격 변경이 있을 때만 refetch (무조건 invalidate 시 selected 상태 초기화됨)
       if (pendingRemoteUpdate.current) {
         pendingRemoteUpdate.current = false;
+        qc.invalidateQueries({ queryKey: ['canvas', projectId, canvasId] });
+      }
+    },
+    onError: (err: any) => {
+      // 낙관적 락 충돌(409): 다른 사용자가 먼저 저장함 → 내 변경을 덮어쓰지 않고 최신으로 갱신 + 경고
+      if (err?.response?.status === 409) {
+        isDirty.current = false;   // 최신 데이터를 받아들이도록 (로드 effect가 반영)
+        lastSavedRef.current = ''; // 기준선 리셋 — refetch된 내용이 새 기준이 됨
+        toast('다른 사용자가 먼저 수정해 최신 내용으로 갱신합니다.', { icon: '⚠️', id: 'canvas-conflict' });
         qc.invalidateQueries({ queryKey: ['canvas', projectId, canvasId] });
       }
     },
@@ -559,6 +570,7 @@ export function CanvasPage() {
   const pendingRemoteUpdate = useRef(false); // 원격 변경이 왔는데 dirty라 바로 못 받았을 때
   const lastServerUpdatedAt = useRef<string>(''); // 마지막으로 로드한 서버 updatedAt (중복 로드 방지)
   const lastSavedRef = useRef<string>(''); // 마지막으로 저장된 내용(직렬화) — 내용 변경 감지로 저장 판단
+  const savingRef = useRef(false); // 저장 in-flight 여부 (중복 저장·경쟁 방지)
 
   // 직렬화: 선택/드래그 등 일시적 상태 제거 (저장/히스토리 비교 공용)
   const serialize = useCallback((ns: Node[], es: any[]) => {
@@ -633,6 +645,7 @@ export function CanvasPage() {
     if (!initialized || !projectId || !canvasId) return;
     const tick = () => {
       if (isRestoringRef.current) return;
+      if (savingRef.current) return; // 직전 저장이 아직 진행 중이면 건너뜀 (중복·경쟁 방지)
       const inst = rfInstanceRef.current;
       const ns: Node[] = inst?.getNodes ? inst.getNodes() : nodesRef.current;
       const es: any[] = inst?.getEdges ? inst.getEdges() : edgesRef.current;
@@ -641,9 +654,16 @@ export function CanvasPage() {
       isDirty.current = true; // 미저장 변경 존재 → SSE 원격 갱신이 덮어쓰지 않도록
       const cleanNodes = ns.map(({ selected: _s, ...n }: any) => n);
       const cleanEdges = es.map(({ selected: _s, ...e }: any) => e);
-      saveCanvas.mutate({ nodes: cleanNodes, edges: cleanEdges });
-      lastSavedRef.current = cur;
-      isDirty.current = false;
+      savingRef.current = true;
+      saveCanvas.mutate(
+        { nodes: cleanNodes, edges: cleanEdges },
+        {
+          // 저장 성공 시에만 기준선 갱신 → 실패하면 다음 tick에서 자동 재시도(데이터 유실 방지).
+          // isDirty도 저장 완료까지 true로 유지해 in-flight 중 원격 갱신이 덮어쓰지 못하게 함.
+          onSuccess: () => { lastSavedRef.current = cur; isDirty.current = false; },
+          onSettled: () => { savingRef.current = false; },
+        },
+      );
     };
     const id = setInterval(tick, 1200);
     return () => clearInterval(id);
@@ -771,7 +791,8 @@ export function CanvasPage() {
       fetch(`/api/projects/${projectId}/canvases/${canvasId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token ?? ''}` },
-        body: JSON.stringify({ data: { nodes: cleanNodes, edges: cleanEdges } }),
+        // 이탈 저장에도 버전을 실어 보냄 → 충돌(409) 시 서버가 저장을 거부해 남의 변경을 덮어쓰지 않음
+        body: JSON.stringify({ data: { nodes: cleanNodes, edges: cleanEdges }, baseUpdatedAt: lastServerUpdatedAt.current || undefined }),
         keepalive: true,
       });
     };

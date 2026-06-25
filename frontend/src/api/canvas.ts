@@ -10,8 +10,8 @@ export const canvasApi = {
   get: (projectId: string, canvasId: string) =>
     api.get(`/projects/${projectId}/canvases/${canvasId}`).then((r) => r.data),
 
-  save: (projectId: string, canvasId: string, data: any) =>
-    api.put(`/projects/${projectId}/canvases/${canvasId}`, { data }).then((r) => r.data),
+  save: (projectId: string, canvasId: string, data: any, baseUpdatedAt?: string) =>
+    api.put(`/projects/${projectId}/canvases/${canvasId}`, { data, baseUpdatedAt }).then((r) => r.data),
 
   rename: (projectId: string, canvasId: string, name: string) =>
     api.put(`/projects/${projectId}/canvases/${canvasId}/rename`, { name }).then((r) => r.data),
