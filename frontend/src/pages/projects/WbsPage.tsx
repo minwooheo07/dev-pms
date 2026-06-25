@@ -459,14 +459,13 @@ export function WbsPage() {
                       <span
                         onDoubleClick={() => startEdit(item.id, 'title', item.title)}
                         className={cn(
-                          'relative flex-1 min-w-0 text-sm cursor-text px-1.5 -mx-1.5 rounded',
-                          depth === 0 ? 'font-semibold text-gray-800' : depth === 1 ? 'font-medium text-gray-700' : 'text-gray-600',
+                          'flex-1 text-sm cursor-text truncate',
+                          isOverdue
+                            ? 'text-red-600 font-semibold'
+                            : depth === 0 ? 'font-semibold text-gray-800' : depth === 1 ? 'font-medium text-gray-700' : 'text-gray-600',
                         )}
                       >
-                        {isOverdue && (
-                          <span aria-hidden className="absolute inset-0 rounded border border-red-400 animate-pulse pointer-events-none" />
-                        )}
-                        <span className="relative block truncate">{item.title}</span>
+                        {item.title}
                       </span>
                     )}
                   </div>
