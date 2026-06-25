@@ -23,13 +23,13 @@ export const tasksApi = {
   delete: (projectId: string, taskId: string) =>
     api.delete(`/projects/${projectId}/tasks/${taskId}`).then((r) => r.data),
   bulkCreate: (projectId: string, rows: BulkTaskRow[]) =>
-    api.post<{ parentCount: number; childCount: number; total: number }>(
+    api.post<{ parentCount: number; childCount: number; standaloneCount: number; total: number }>(
       `/projects/${projectId}/tasks/bulk`, { rows },
     ).then((r) => r.data),
 };
 
 export interface BulkTaskRow {
-  category: string;
+  category?: string;
   title?: string;
   description?: string;
   assigneeName?: string;

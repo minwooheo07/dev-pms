@@ -45,7 +45,7 @@ export function BulkImportModal({ projectId, onClose }: BulkImportModalProps) {
             if (field) row[field] = String(value ?? '').trim();
           }
           return row as BulkTaskRow;
-        }).filter((r) => r.category && r.title);
+        }).filter((r) => r.title?.trim() || r.category?.trim());
         if (parsed.length === 0) {
           toast.error('유효한 데이터가 없습니다. 양식을 확인하세요.');
           return;
@@ -64,6 +64,7 @@ export function BulkImportModal({ projectId, onClose }: BulkImportModalProps) {
       { 업무구분: '회원관리', 제목: '로그인 SSO 연동', 업무파트: '백엔드', 설명: '사내 SSO 연동', 담당자: '', 우선순위: 'HIGH', 시작일: '2026-07-01', 마감일: '2026-07-10' },
       { 업무구분: '회원관리', 제목: '비밀번호 정책 적용', 업무파트: '백엔드', 설명: '', 담당자: '', 우선순위: 'MEDIUM', 시작일: '', 마감일: '' },
       { 업무구분: '주문관리', 제목: '주문 취소 기능', 업무파트: '프론트', 설명: '', 담당자: '', 우선순위: 'URGENT', 시작일: '', 마감일: '' },
+      { 업무구분: '', 제목: '단독 처리 건 (업무구분 비우면 단일 태스크)', 업무파트: '', 설명: '', 담당자: '', 우선순위: 'MEDIUM', 시작일: '', 마감일: '' },
     ];
     const ws = XLSX.utils.json_to_sheet(sample);
     ws['!cols'] = [{ wch: 14 }, { wch: 28 }, { wch: 12 }, { wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }];
@@ -76,15 +77,19 @@ export function BulkImportModal({ projectId, onClose }: BulkImportModalProps) {
     mutationFn: () => tasksApi.bulkCreate(projectId, rows),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['kanban', projectId] });
-      toast.success(`상위 ${res.parentCount}개 · 하위 ${res.childCount}개 등록 완료`);
+      const parts: string[] = [];
+      if (res.parentCount) parts.push(`상위 ${res.parentCount}개`);
+      if (res.childCount) parts.push(`하위 ${res.childCount}개`);
+      if (res.standaloneCount) parts.push(`단일 ${res.standaloneCount}개`);
+      toast.success(`${parts.join(' · ') || '0개'} 등록 완료`);
       onClose();
     },
     onError: () => toast.error('일괄 등록에 실패했습니다.'),
   });
 
-  // 업무구분별 그룹 요약 (미리보기)
+  // 업무구분별 그룹 요약 (미리보기) — 업무구분이 있는 행만 집계
   const groupCount = new Map<string, number>();
-  rows.forEach((r) => groupCount.set(r.category, (groupCount.get(r.category) ?? 0) + 1));
+  rows.forEach((r) => { if (r.category?.trim()) groupCount.set(r.category, (groupCount.get(r.category) ?? 0) + 1); });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -98,7 +103,7 @@ export function BulkImportModal({ projectId, onClose }: BulkImportModalProps) {
             </div>
             <div>
               <h2 className="text-base font-bold text-gray-800">엑셀 일괄 등록</h2>
-              <p className="text-[11px] text-gray-500">업무구분별로 상위 태스크 + 하위 태스크를 한번에 생성</p>
+              <p className="text-[11px] text-gray-500">여러 태스크를 한번에 생성 · 업무구분으로 묶으면 상위-하위 구조로 생성</p>
             </div>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
@@ -109,7 +114,7 @@ export function BulkImportModal({ projectId, onClose }: BulkImportModalProps) {
           <div className="flex items-center justify-between rounded-xl border border-dashed border-gray-300 px-4 py-3 bg-gray-50">
             <div className="text-xs text-gray-600">
               <p className="font-semibold mb-0.5">1. 양식을 받아 내용을 채우세요</p>
-              <p className="text-gray-400">필수: 업무구분, 제목 / 선택: 업무파트, 설명, 담당자, 우선순위, 시작일, 마감일</p>
+              <p className="text-gray-400">필수: 제목 / 선택: 업무구분(같은 값끼리 상위 태스크로 묶음), 업무파트, 설명, 담당자, 우선순위, 시작일, 마감일</p>
             </div>
             <Button variant="outline" onClick={downloadTemplate}>
               <Download size={14} className="mr-1" /> 양식 다운로드
@@ -155,7 +160,7 @@ export function BulkImportModal({ projectId, onClose }: BulkImportModalProps) {
                   <tbody className="divide-y divide-gray-100">
                     {rows.slice(0, 100).map((r, i) => (
                       <tr key={i} className="hover:bg-gray-50">
-                        <td className="px-3 py-1.5 text-gray-600">{r.category}</td>
+                        <td className="px-3 py-1.5 text-gray-600">{r.category || '-'}</td>
                         <td className="px-3 py-1.5 text-gray-800 max-w-[220px] truncate">{r.title}</td>
                         <td className="px-3 py-1.5 text-gray-500">{r.part || '-'}</td>
                         <td className="px-3 py-1.5 text-gray-500">{r.assigneeName || '-'}</td>
