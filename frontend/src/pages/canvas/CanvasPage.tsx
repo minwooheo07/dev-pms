@@ -6,8 +6,9 @@ import { getAccessToken } from '../../utils/token';
 import { usersApi } from '../../api/users';
 import {
   ReactFlow, Background, Controls, MiniMap,
-  addEdge, useNodesState, useEdgesState,
-  type Connection, type NodeTypes, type Node,
+  addEdge, reconnectEdge, useNodesState, useEdgesState,
+  BaseEdge, EdgeLabelRenderer, getBezierPath, getStraightPath, getSmoothStepPath,
+  type Connection, type Edge, type EdgeProps, type EdgeTypes, type NodeTypes, type Node,
   Panel, BackgroundVariant, MarkerType, NodeResizer,
   Handle, Position, useReactFlow, SelectionMode, PanOnScrollMode,
 } from '@xyflow/react';
@@ -623,6 +624,64 @@ const nodeTypes: NodeTypes = {
   image: ImageNode,
 };
 
+// ── 커스텀 엣지: 곡선/직선/계단 + 중간 꺾기(waypoint) + 라벨 ──
+function EditableEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, label, selected, markerEnd, style }: EdgeProps) {
+  const { setEdges, screenToFlowPosition } = useReactFlow();
+  const hasWp = (data as any)?.mx != null && (data as any)?.my != null;
+  let path: string, lx: number, ly: number;
+  if (hasWp) {
+    const mx = (data as any).mx as number, my = (data as any).my as number;
+    path = `M ${sourceX},${sourceY} L ${mx},${my} L ${targetX},${targetY}`;
+    lx = mx; ly = my;
+  } else {
+    const shape = (data as any)?.shape ?? 'curve';
+    const args = { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition };
+    const [p, labelX, labelY] =
+      shape === 'straight' ? getStraightPath({ sourceX, sourceY, targetX, targetY })
+      : shape === 'step' ? getSmoothStepPath(args)
+      : getBezierPath(args);
+    path = p; lx = labelX; ly = labelY;
+  }
+
+  const startDrag = (e: React.PointerEvent) => {
+    e.stopPropagation(); e.preventDefault();
+    const move = (mv: PointerEvent) => {
+      const p = screenToFlowPosition({ x: mv.clientX, y: mv.clientY });
+      setEdges((es) => es.map((ed) => ed.id === id ? { ...ed, data: { ...(ed.data || {}), mx: p.x, my: p.y } } : ed));
+    };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  const resetBend = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEdges((es) => es.map((ed) => ed.id === id ? { ...ed, data: { ...(ed.data || {}), mx: undefined, my: undefined } } : ed));
+  };
+
+  const stroke = (style as any)?.stroke ?? '#e60012';
+  return (
+    <>
+      <BaseEdge id={id} path={path} markerEnd={markerEnd} style={style} interactionWidth={22} />
+      <EdgeLabelRenderer>
+        {label != null && label !== '' && (
+          <div className="nodrag nopan"
+            style={{ position: 'absolute', transform: `translate(-50%,-50%) translate(${lx}px,${ly - 14}px)`, pointerEvents: 'none' }}>
+            <span className="px-1.5 py-0.5 rounded bg-white/90 border border-gray-200 text-[11px] text-gray-600 shadow-sm">{label}</span>
+          </div>
+        )}
+        {selected && (
+          <div className="nodrag nopan" onPointerDown={startDrag} onDoubleClick={resetBend} title="드래그: 꺾기 · 더블클릭: 펴기"
+            style={{ position: 'absolute', transform: `translate(-50%,-50%) translate(${lx}px,${ly}px)`, pointerEvents: 'all', cursor: 'move' }}>
+            <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#fff', border: `2px solid ${stroke}`, boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+          </div>
+        )}
+      </EdgeLabelRenderer>
+    </>
+  );
+}
+
+const edgeTypes: EdgeTypes = { editable: EditableEdge };
+
 const EMPTY_NODES: Node[] = [];
 const EMPTY_EDGES: any[] = [];
 
@@ -754,9 +813,11 @@ export function CanvasPage() {
     const applyServerData = () => {
       try {
         const saved = typeof canvasData.data === 'string' ? JSON.parse(canvasData.data) : canvasData.data;
+        // 기존 엣지도 편집 가능(꺾기/모양/reconnect) 커스텀 타입으로 통일 (외형은 동일)
+        const migratedEdges = (saved?.edges ?? []).map((e: any) => ({ ...e, type: 'editable' }));
         if (saved?.nodes) setNodes(saved.nodes);
-        if (saved?.edges) setEdges(saved.edges);
-        lastSavedRef.current = serialize(saved?.nodes ?? [], saved?.edges ?? []);
+        if (saved?.edges) setEdges(migratedEdges);
+        lastSavedRef.current = serialize(saved?.nodes ?? [], migratedEdges);
       } catch {}
       isDirty.current = false;
       lastServerUpdatedAt.current = serverTime;
@@ -1055,11 +1116,28 @@ export function CanvasPage() {
     isDirty.current = true;
     setEdges((eds) => addEdge({
       ...params,
+      type: 'editable',
       markerEnd: { type: MarkerType.ArrowClosed },
       style: { stroke: '#e60012', strokeWidth: 2 },
       interactionWidth: 20,
     }, eds));
   }, [setEdges]);
+
+  // 화살표 끝을 다른 도형/핸들로 끌어 연결 변경(reconnect) — 길이·경로 조절
+  const onReconnect = useCallback((oldEdge: Edge, newConnection: Connection) => {
+    isDirty.current = true;
+    setEdges((els) => reconnectEdge(oldEdge, newConnection, els));
+  }, [setEdges]);
+
+  // 엣지 경로 모양 변경 (curve=곡선 / straight=직선 / step=계단) — 꺾기(waypoint) 있으면 해제
+  const changeEdgeShape = useCallback((shape: 'curve' | 'straight' | 'step') => {
+    if (!contextMenu?.edgeId) return;
+    isDirty.current = true;
+    setEdges((es) => es.map((e) => e.id === contextMenu.edgeId
+      ? { ...e, data: { ...(e.data || {}), shape, mx: undefined, my: undefined } }
+      : e));
+    setContextMenu(null);
+  }, [contextMenu, setEdges]);
 
   // 프레임 편입/이탈 — 드래그 종료 시 도형 중심이 어느 프레임 안에 있으면 그 프레임의 자식으로 편입
   const onNodeDragStop = useCallback((_e: any, node: Node) => {
@@ -1589,8 +1667,11 @@ export function CanvasPage() {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onReconnect={onReconnect}
+          edgesReconnectable
           onInit={setRfInstance}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           onNodeClick={() => {
             if (!['pan', 'select'].includes(tool)) setTool('select');
           }}
@@ -1615,6 +1696,7 @@ export function CanvasPage() {
           snapGrid={[16, 16]}
           connectionLineStyle={{ stroke: '#e60012', strokeWidth: 2 }}
           defaultEdgeOptions={{
+            type: 'editable',
             markerEnd: { type: MarkerType.ArrowClosed },
             style: { stroke: '#e60012', strokeWidth: 2 },
           }}
@@ -1784,6 +1866,19 @@ export function CanvasPage() {
                   </div>
                 </div>
                 <div className="border-t border-gray-100 my-1" />
+                <div className="px-3 py-2">
+                  <p className="text-[11px] text-gray-400 mb-1.5">선 모양</p>
+                  <div className="flex items-center gap-1">
+                    {([['curve','곡선'],['straight','직선'],['step','계단']] as const).map(([t, label]) => (
+                      <button key={t} onClick={() => changeEdgeShape(t)}
+                        className="flex-1 text-[11px] px-2 py-1 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors">
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="border-t border-gray-100 my-1" />
+                <p className="px-3 pb-1 text-[11px] text-gray-400 leading-relaxed">선택 후 가운데 점을 끌면 꺾이고(더블클릭=펴기), 끝점을 끌면 다른 도형에 다시 연결돼요</p>
                 <button onClick={() => {
                   const edge = edges.find((e) => e.id === contextMenu.edgeId);
                   setEdgeLabelEdit({ edgeId: contextMenu.edgeId!, label: String(edge?.label ?? '') });
