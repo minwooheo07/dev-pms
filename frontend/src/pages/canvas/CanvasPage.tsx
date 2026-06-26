@@ -1640,8 +1640,10 @@ export function CanvasPage() {
         .react-flow__edge.selected .react-flow__edge-path { stroke: #f59e0b !important; stroke-width: 3px !important; }
         .react-flow__edge.selected marker path { fill: #f59e0b !important; }
       `}</style>
-      {/* 툴바 */}
-      <div className="flex items-center gap-2 px-4 py-2 bg-white border-b border-gray-200 flex-shrink-0 shadow-sm">
+      {/* 툴바 (2행: 탐색·액션 / 도형 도구) */}
+      <div className="flex flex-col gap-1.5 px-4 py-2 bg-white border-b border-gray-200 flex-shrink-0 shadow-sm">
+        {/* 1행: 탐색 · 우측 액션 */}
+        <div className="flex items-center gap-2">
         <button
           onClick={() => navigate('/canvas')}
           className="flex items-center gap-1 text-gray-400 hover:text-gray-600 transition-colors mr-1"
@@ -1709,11 +1711,44 @@ export function CanvasPage() {
           </button>
         </div>
 
-        <div className="w-px h-4 bg-gray-200" />
+        {/* 우측 액션 (1행) */}
+        <div className="ml-auto flex items-center gap-2">
+          {selectedCount > 0 ? (
+            <button
+              onClick={deleteSelected}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors shadow-sm"
+            >
+              <Trash2 size={13} /> {selectedCount}개 삭제
+            </button>
+          ) : (
+            <button
+              onClick={deleteSelected}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-red-400 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-200 transition-colors"
+            >
+              <Trash2 size={13} /> 삭제
+            </button>
+          )}
+          <button
+            onClick={() => setCommentOpen((v) => !v)}
+            className={cn(
+              'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+              commentOpen ? 'bg-primary-50 border-gray-300 text-gray-600' : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-600',
+            )}
+          >
+            <MessageSquare size={14} />
+            댓글
+            {comments.length > 0 && (
+              <span className="bg-primary-100 text-gray-600 rounded-full px-1.5 py-0.5 text-[10px] font-bold">{comments.length}</span>
+            )}
+          </button>
+        </div>
+        </div>{/* 1행 끝 */}
 
-        {/* 도형 · 콘텐츠 */}
+        {/* 2행: 도형 도구 */}
+        <div className="flex items-center gap-2 flex-wrap">
+        {/* 프로세스(프레임·스윔레인·BPMN) */}
         <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-          {shapeTools.map(({ id, icon: Icon, label, shortcut }) => (
+          {shapeTools.filter((t) => ['frame','swimlane','swimlaneV','bpmnStart','bpmnEnd','gateway'].includes(t.id)).map(({ id, icon: Icon, label, shortcut }) => (
             <button
               key={id}
               onClick={() => { setTool(id); setShowEmoji(false); }}
@@ -1724,9 +1759,25 @@ export function CanvasPage() {
               )}
             >
               <Icon size={14} /> {label}
-              <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-white opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50">
-                {label} <kbd className="ml-1 font-mono opacity-70">{shortcut}</kbd>
-              </span>
+            </button>
+          ))}
+        </div>
+
+        <div className="w-px h-4 bg-gray-200" />
+
+        {/* 일반 도형 · 콘텐츠 */}
+        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+          {shapeTools.filter((t) => !['frame','swimlane','swimlaneV','bpmnStart','bpmnEnd','gateway'].includes(t.id)).map(({ id, icon: Icon, label, shortcut }) => (
+            <button
+              key={id}
+              onClick={() => { setTool(id); setShowEmoji(false); }}
+              title={`${label} (${shortcut})`}
+              className={cn(
+                'group relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors',
+                tool === id ? 'bg-white text-gray-600 shadow-sm' : 'text-gray-500 hover:text-gray-600',
+              )}
+            >
+              <Icon size={14} /> {label}
             </button>
           ))}
         </div>
@@ -1811,36 +1862,7 @@ export function CanvasPage() {
           </div>
         )}
 
-        <div className="ml-auto flex items-center gap-2">
-          {selectedCount > 0 ? (
-            <button
-              onClick={deleteSelected}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors shadow-sm"
-            >
-              <Trash2 size={13} /> {selectedCount}개 삭제
-            </button>
-          ) : (
-            <button
-              onClick={deleteSelected}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-red-400 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-200 transition-colors"
-            >
-              <Trash2 size={13} /> 삭제
-            </button>
-          )}
-          <button
-            onClick={() => setCommentOpen((v) => !v)}
-            className={cn(
-              'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors',
-              commentOpen ? 'bg-primary-50 border-gray-300 text-gray-600' : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-600',
-            )}
-          >
-            <MessageSquare size={14} />
-            댓글
-            {comments.length > 0 && (
-              <span className="bg-primary-100 text-gray-600 rounded-full px-1.5 py-0.5 text-[10px] font-bold">{comments.length}</span>
-            )}
-          </button>
-        </div>
+        </div>{/* 2행 끝 */}
       </div>
 
       {/* 캔버스 + 댓글 패널 */}
