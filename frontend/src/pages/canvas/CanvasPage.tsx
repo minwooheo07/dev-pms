@@ -19,6 +19,7 @@ import {
   MessageSquare, Send, X, Undo2, Redo2,
   ImageIcon, Lock, Unlock, MagnetIcon, Tag, UserPlus,
   Table2, Plus as PlusIcon, Trash, Cylinder, Frame, Slash, BringToFront, SendToBack,
+  Rows3, CircleDot, CircleStop, Split,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../../components/ui/Avatar';
@@ -610,7 +611,166 @@ function ImageNode({ id, data, selected }: any) {
   );
 }
 
+// ── 커스텀 노드: 스윔레인(가로 레인 풀) ────────────
+function SwimlaneNode({ id, data, selected }: any) {
+  const { setNodes } = useReactFlow();
+  const lanes: { id: string; label: string }[] = data.lanes ?? [{ id: 'l1', label: '레인 1' }];
+  const headerColor = data.headerColor ?? '#475569';
+  const [edit, setEdit] = useState<{ kind: 'pool' | 'lane'; laneId?: string } | null>(null);
+  const [draft, setDraft] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (edit && inputRef.current) { inputRef.current.focus(); inputRef.current.select(); } }, [edit]);
+
+  const begin = (kind: 'pool' | 'lane', laneId: string | undefined, cur: string) => { setDraft(cur); setEdit({ kind, laneId }); };
+  const commit = () => {
+    setNodes((ns) => ns.map((n) => {
+      if (n.id !== id) return n;
+      if (edit?.kind === 'pool') return { ...n, data: { ...n.data, label: draft } };
+      return { ...n, data: { ...n.data, lanes: (n.data.lanes as any[]).map((l) => l.id === edit?.laneId ? { ...l, label: draft } : l) } };
+    }));
+    setEdit(null);
+  };
+  const curHeight = (n: any) => n.height ?? n.measured?.height ?? (typeof n.style?.height === 'number' ? n.style.height : 240);
+  const addLane = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setNodes((ns) => ns.map((n) => {
+      if (n.id !== id) return n;
+      const cur = (n.data.lanes as any[]) ?? [];
+      return { ...n, data: { ...n.data, lanes: [...cur, { id: `l${Date.now()}`, label: `레인 ${cur.length + 1}` }] }, style: { ...n.style, height: curHeight(n) + 90 } };
+    }));
+  };
+  const removeLane = (laneId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setNodes((ns) => ns.map((n) => {
+      if (n.id !== id) return n;
+      const cur = (n.data.lanes as any[]) ?? [];
+      if (cur.length <= 1) return n;
+      return { ...n, data: { ...n.data, lanes: cur.filter((l) => l.id !== laneId) }, style: { ...n.style, height: Math.max(120, curHeight(n) - 90) } };
+    }));
+  };
+
+  return (
+    <>
+      <NodeResizer isVisible={selected && !data.locked} minWidth={280} minHeight={120} handleStyle={{ width: 9, height: 9, borderRadius: 2 }} lineStyle={{ borderColor: headerColor, borderWidth: 1 }} />
+      <NodeHandles />
+      <NodeOverlay data={data} selected={selected} />
+      <div className="w-full h-full flex rounded-lg overflow-hidden border-2 bg-white" style={{ borderColor: headerColor }}>
+        {/* 풀 제목 (세로) */}
+        <div className="flex-shrink-0 w-7 flex items-center justify-center cursor-text" style={{ background: headerColor }}
+          onDoubleClick={(e) => { if (data.locked) return; e.stopPropagation(); begin('pool', undefined, data.label ?? ''); }}>
+          {edit?.kind === 'pool' ? (
+            <input ref={inputRef} value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit}
+              onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEdit(null); }}
+              className="nodrag nopan h-24 text-xs text-center bg-white/90 rounded outline-none" style={{ writingMode: 'vertical-rl' }} />
+          ) : (
+            <span className="text-white text-xs font-bold select-none" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>{data.label || 'Pool'}</span>
+          )}
+        </div>
+        {/* 레인들 */}
+        <div className="flex-1 flex flex-col">
+          {lanes.map((lane, i) => (
+            <div key={lane.id} className={cn('flex-1 flex min-h-[60px]', i > 0 && 'border-t-2')} style={{ borderColor: headerColor }}>
+              <div className="flex-shrink-0 w-6 flex items-center justify-center bg-gray-50 border-r relative group/lane cursor-text" style={{ borderColor: headerColor }}
+                onDoubleClick={(e) => { if (data.locked) return; e.stopPropagation(); begin('lane', lane.id, lane.label); }}>
+                {edit?.kind === 'lane' && edit.laneId === lane.id ? (
+                  <input ref={inputRef} value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit}
+                    onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEdit(null); }}
+                    className="nodrag nopan h-16 text-[11px] text-center bg-white rounded outline-none border" style={{ writingMode: 'vertical-rl' }} />
+                ) : (
+                  <span className="text-[11px] font-semibold text-gray-600 select-none" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>{lane.label}</span>
+                )}
+                {selected && lanes.length > 1 && (
+                  <button onMouseDown={(e) => e.stopPropagation()} onClick={(e) => removeLane(lane.id, e)}
+                    className="nodrag absolute top-0.5 right-0.5 opacity-0 group-hover/lane:opacity-100 text-gray-300 hover:text-red-500 transition-opacity" title="레인 삭제">
+                    <X size={10} />
+                  </button>
+                )}
+              </div>
+              <div className="flex-1" />
+            </div>
+          ))}
+        </div>
+      </div>
+      {selected && !data.locked && (
+        <button onMouseDown={(e) => e.stopPropagation()} onClick={addLane}
+          className="nodrag absolute -bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border shadow-sm text-[11px] text-gray-600 hover:text-primary-600"
+          style={{ borderColor: headerColor }} title="레인 추가">
+          <PlusIcon size={11} /> 레인
+        </button>
+      )}
+    </>
+  );
+}
+
+// ── 커스텀 노드: BPMN 이벤트(시작/종료/중간) ───────
+function BpmnEventNode({ id, data, selected }: any) {
+  const { setNodes } = useReactFlow();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(data.label ?? '');
+  const taRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (editing && taRef.current) { taRef.current.focus(); taRef.current.select(); } }, [editing]);
+  const commit = () => { setNodes((ns) => ns.map((n) => n.id === id ? { ...n, data: { ...n.data, label: draft } } : n)); setEditing(false); };
+  const kind = data.kind ?? 'start';
+  const color = data.border ?? (kind === 'end' ? '#dc2626' : kind === 'intermediate' ? '#d97706' : '#16a34a');
+  const bg = data.bg ?? (kind === 'end' ? '#fee2e2' : kind === 'intermediate' ? '#fef3c7' : '#dcfce7');
+  const ring = kind === 'end' ? '4px' : '2px';
+  return (
+    <>
+      <NodeResizer isVisible={selected && !editing && !data.locked} keepAspectRatio minWidth={44} minHeight={44} handleStyle={{ width: 8, height: 8, borderRadius: 2 }} lineStyle={RESIZER_STYLE} />
+      {!editing && <NodeHandles />}
+      <NodeOverlay data={data} selected={selected} />
+      <div className={cn('w-full h-full rounded-full flex items-center justify-center', selected && !editing && 'ring-2 ring-primary-400 ring-offset-1')}
+        style={{ background: bg, border: `${ring} solid ${color}`, boxShadow: kind === 'intermediate' ? `inset 0 0 0 3px ${bg}, inset 0 0 0 5px ${color}` : undefined }}
+        onDoubleClick={(e) => { if (data.locked) return; e.stopPropagation(); setDraft(data.label ?? ''); setEditing(true); }}>
+        {editing ? (
+          <input ref={taRef} value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit}
+            onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
+            className="nodrag nopan w-[80%] text-[10px] text-center bg-transparent outline-none" />
+        ) : data.label ? (
+          <span className="text-[10px] font-medium text-gray-700 text-center px-1 leading-tight select-none break-words">{data.label}</span>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
+// ── 커스텀 노드: 게이트웨이(마름모 + 기호) ──────────
+function GatewayNode({ id, data, selected }: any) {
+  const { setNodes } = useReactFlow();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(data.label ?? '');
+  const taRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (editing && taRef.current) { taRef.current.focus(); taRef.current.select(); } }, [editing]);
+  const commit = () => { setNodes((ns) => ns.map((n) => n.id === id ? { ...n, data: { ...n.data, label: draft } } : n)); setEditing(false); };
+  const kind = data.kind ?? 'exclusive';
+  const sym = kind === 'parallel' ? '+' : kind === 'inclusive' ? '○' : '✕';
+  const bg = data.bg ?? '#fef9c3'; const border = data.border ?? '#ca8a04';
+  return (
+    <>
+      <NodeResizer isVisible={selected && !editing && !data.locked} keepAspectRatio minWidth={50} minHeight={50} handleStyle={{ width: 8, height: 8, borderRadius: 2 }} lineStyle={RESIZER_STYLE} />
+      {!editing && <NodeHandles />}
+      <NodeOverlay data={data} selected={selected} />
+      <div className="w-full h-full flex items-center justify-center" onDoubleClick={(e) => { if (data.locked) return; e.stopPropagation(); setDraft(data.label ?? ''); setEditing(true); }}>
+        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ filter: selected && !editing ? 'drop-shadow(0 0 0 2px #ff9090)' : undefined }}>
+          <polygon points="50,2 98,50 50,98 2,50" fill={bg} stroke={border} strokeWidth="3" />
+        </svg>
+        <span className="relative z-10 font-bold select-none" style={{ color: border, fontSize: 22 }}>{sym}</span>
+        {editing ? (
+          <input ref={taRef} value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit}
+            onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
+            className="nodrag nopan absolute -bottom-5 w-24 text-[10px] text-center bg-white/90 rounded outline-none border" />
+        ) : data.label ? (
+          <span className="absolute -bottom-5 text-[10px] text-gray-600 whitespace-nowrap select-none">{data.label}</span>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
 const nodeTypes: NodeTypes = {
+  swimlane: SwimlaneNode,
+  bpmnEvent: BpmnEventNode,
+  gateway: GatewayNode,
   frame: FrameNode,
   line: LineNode,
   rect: RectNode,
@@ -709,7 +869,7 @@ const BG_COLORS = [
 const STICKY_COLORS = ['#fef08a','#bbf7d0','#fde68a','#bfdbfe','#f5d0fe','#fed7aa'];
 const EDGE_COLORS = ['#e60012','#0ea5e9','#10b981','#f59e0b','#a855f7','#ec4899','#64748b','#111827'];
 
-type Tool = 'pan' | 'select' | 'frame' | 'line' | 'rect' | 'circle' | 'diamond' | 'cylinder' | 'text' | 'emoji' | 'sticky' | 'erd' | 'image';
+type Tool = 'pan' | 'select' | 'frame' | 'swimlane' | 'bpmnStart' | 'bpmnEnd' | 'gateway' | 'line' | 'rect' | 'circle' | 'diamond' | 'cylinder' | 'text' | 'emoji' | 'sticky' | 'erd' | 'image';
 
 const uid = () => `node-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
@@ -1022,7 +1182,7 @@ export function CanvasPage() {
   // ── 도구 단축키 (독립 effect, capture 단계) ───────────
   useEffect(() => {
     const TOOL_MAP: Record<string, Tool> = {
-      h: 'pan', v: 'select', f: 'frame', r: 'rect', c: 'circle',
+      h: 'pan', v: 'select', f: 'frame', s: 'swimlane', g: 'gateway', r: 'rect', c: 'circle',
       d: 'diamond', y: 'cylinder', l: 'line', t: 'text', n: 'sticky', e: 'erd', i: 'image',
     };
     const onKey = (e: KeyboardEvent) => {
@@ -1141,8 +1301,9 @@ export function CanvasPage() {
 
   // 프레임 편입/이탈 — 드래그 종료 시 도형 중심이 어느 프레임 안에 있으면 그 프레임의 자식으로 편입
   const onNodeDragStop = useCallback((_e: any, node: Node) => {
-    if (node.type === 'frame') return; // 프레임 자체는 다른 프레임에 넣지 않음(중첩 비허용)
+    if (node.type === 'frame' || node.type === 'swimlane') return; // 컨테이너 자체는 중첩 비허용
     const all = nodesRef.current as any[];
+    const isContainer = (t?: string) => t === 'frame' || t === 'swimlane';
     const dim = (nd: any, key: 'width' | 'height') =>
       nd[key] ?? nd.measured?.[key] ?? (typeof nd.style?.[key] === 'number' ? nd.style[key] : 0) ?? 0;
     const getAbs = (nd: any) => {
@@ -1156,7 +1317,7 @@ export function CanvasPage() {
     const cx = abs.x + dim(node, 'width') / 2;
     const cy = abs.y + dim(node, 'height') / 2;
     const target = all.find((f) => {
-      if (f.type !== 'frame' || f.id === node.id) return false;
+      if (!isContainer(f.type) || f.id === node.id) return false;
       const fw = dim(f, 'width'), fh = dim(f, 'height');
       return cx >= f.position.x && cx <= f.position.x + fw && cy >= f.position.y && cy <= f.position.y + fh;
     });
@@ -1192,6 +1353,14 @@ export function CanvasPage() {
     let newNode: Node;
     if (tool === 'frame') {
       newNode = { id: uid(), type: 'frame', position: pos, data: { label: label || '그룹', border: '#6366f1', bg: 'rgba(99,102,241,0.06)' }, style: { width: 320, height: 220 } };
+    } else if (tool === 'swimlane') {
+      newNode = { id: uid(), type: 'swimlane', position: pos, data: { label: 'Pool', headerColor: '#475569', lanes: [{ id: 'l1', label: '레인 1' }, { id: 'l2', label: '레인 2' }] }, style: { width: 560, height: 240 } };
+    } else if (tool === 'bpmnStart') {
+      newNode = { id: uid(), type: 'bpmnEvent', position: pos, data: { kind: 'start', label }, style: { width: 54, height: 54 } };
+    } else if (tool === 'bpmnEnd') {
+      newNode = { id: uid(), type: 'bpmnEvent', position: pos, data: { kind: 'end', label }, style: { width: 54, height: 54 } };
+    } else if (tool === 'gateway') {
+      newNode = { id: uid(), type: 'gateway', position: pos, data: { kind: 'exclusive', label }, style: { width: 64, height: 64 } };
     } else if (tool === 'rect') {
       newNode = { id: uid(), type: 'rect', position: pos, data: { label, ...color }, style: { width: 180, height: 90 } };
     } else if (tool === 'circle') {
@@ -1235,8 +1404,9 @@ export function CanvasPage() {
       return;
     }
     isDirty.current = true;
-    // 프레임은 배열 앞에 둬서 자식 도형들보다 뒤(아래)에 렌더되도록
-    setNodes((ns) => newNode.type === 'frame' ? [newNode, ...ns] : [...ns, newNode]);
+    // 컨테이너(프레임/스윔레인)는 배열 앞에 둬서 자식 도형들보다 뒤(아래)에 렌더되도록
+    const isContainer = newNode.type === 'frame' || newNode.type === 'swimlane';
+    setNodes((ns) => isContainer ? [newNode, ...ns] : [...ns, newNode]);
     setTool('pan');
   }, [tool, selectedColor, selectedSticky, setNodes]);
 
@@ -1249,7 +1419,7 @@ export function CanvasPage() {
       target === e.currentTarget;
     if (!isPane) { setTool('select'); return; }
     const pos = getCanvasPosition(e);
-    if (tool === 'image' || tool === 'line') {
+    if (tool === 'image' || tool === 'line' || tool === 'swimlane' || tool === 'bpmnStart' || tool === 'bpmnEnd' || tool === 'gateway') {
       addNode(pos, '');
       setTool('pan');
       return;
@@ -1274,7 +1444,7 @@ export function CanvasPage() {
     setNodes((ns) => {
       // 삭제되는 프레임의 자식은 절대좌표로 분리(부모 참조 끊김 방지)
       const removedFrames = new Map(
-        ns.filter((n) => n.selected && n.type === 'frame').map((n) => [n.id, n.position]),
+        ns.filter((n) => n.selected && (n.type === 'frame' || n.type === 'swimlane')).map((n) => [n.id, n.position]),
       );
       return ns.filter((n) => !n.selected).map((n) => {
         const fp = n.parentId ? removedFrames.get(n.parentId) : undefined;
@@ -1311,7 +1481,7 @@ export function CanvasPage() {
     isDirty.current = true;
     if (contextMenu?.nodeId) setNodes((ns) => {
       const del = ns.find((n) => n.id === contextMenu.nodeId);
-      const framePos = del?.type === 'frame' ? del.position : undefined;
+      const framePos = (del?.type === 'frame' || del?.type === 'swimlane') ? del.position : undefined;
       return ns.filter((n) => n.id !== contextMenu.nodeId).map((n) => {
         if (framePos && n.parentId === contextMenu.nodeId) {
           return { ...n, parentId: undefined, extent: undefined, position: { x: framePos.x + n.position.x, y: framePos.y + n.position.y } } as any;
@@ -1423,7 +1593,11 @@ export function CanvasPage() {
     { id: 'select', icon: MousePointer2, label: '선택',   shortcut: 'V' },
   ];
   const shapeTools: { id: Tool; icon: any; label: string; shortcut: string }[] = [
-    { id: 'frame',   icon: Frame,     label: '그룹틀',  shortcut: 'F' },
+    { id: 'frame',     icon: Frame,      label: '그룹틀',     shortcut: 'F' },
+    { id: 'swimlane',  icon: Rows3,      label: '스윔레인',    shortcut: 'S' },
+    { id: 'bpmnStart', icon: CircleDot,  label: '시작이벤트',  shortcut: '' },
+    { id: 'bpmnEnd',   icon: CircleStop, label: '종료이벤트',  shortcut: '' },
+    { id: 'gateway',   icon: Split,      label: '게이트웨이',  shortcut: 'G' },
     { id: 'rect',    icon: Square,    label: '사각형',  shortcut: 'R' },
     { id: 'circle',  icon: Circle,    label: '원',      shortcut: 'C' },
     { id: 'diamond', icon: Diamond,   label: '마름모',  shortcut: 'D' },
