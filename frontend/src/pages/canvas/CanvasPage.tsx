@@ -17,7 +17,7 @@ import {
   Trash2, MousePointer2, Hand, ZoomIn, ZoomOut, ChevronLeft, Save,
   MessageSquare, Send, X, Undo2, Redo2,
   ImageIcon, Lock, Unlock, MagnetIcon, Tag, UserPlus,
-  Table2, Plus as PlusIcon, Trash,
+  Table2, Plus as PlusIcon, Trash, Cylinder,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../../components/ui/Avatar';
@@ -179,6 +179,49 @@ function DiamondNode({ id, data, selected }: any) {
         ) : (
           <span className="relative z-10 font-medium text-center px-2 break-words whitespace-pre-wrap leading-tight cursor-default select-none"
             style={{ color: data.color ?? '#92400e', fontSize: data.fontSize ?? 12 }}>
+            {data.label}
+          </span>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ── 커스텀 노드: 원통(실린더) ─────────────────────
+function CylinderNode({ id, data, selected }: any) {
+  const { setNodes } = useReactFlow();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(data.label ?? '');
+  const taRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => { if (editing && taRef.current) { taRef.current.focus(); taRef.current.select(); } }, [editing]);
+  const commit = () => {
+    setNodes((ns) => ns.map((n) => n.id === id ? { ...n, data: { ...n.data, label: draft } } : n));
+    setEditing(false);
+  };
+  const bg = data.bg ?? '#e0f2fe';
+  const border = data.border ?? '#0ea5e9';
+  return (
+    <>
+      <NodeResizer isVisible={selected && !editing && !data.locked} minWidth={60} minHeight={70} handleStyle={{ width: 8, height: 8, borderRadius: 2 }} lineStyle={RESIZER_STYLE} />
+      {!editing && <NodeHandles />}
+      <NodeOverlay data={data} selected={selected} />
+      <div className="w-full h-full flex items-center justify-center"
+        onDoubleClick={(e) => { if (data.locked) return; e.stopPropagation(); setDraft(data.label ?? ''); setEditing(true); }}>
+        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none"
+          style={{ filter: selected && !editing ? 'drop-shadow(0 0 0 2px #ff9090)' : undefined }}>
+          {/* 몸통 + 바닥 곡선 */}
+          <path d="M2,14 L2,86 A48,12 0 0 0 98,86 L98,14" fill={bg} stroke={border} strokeWidth="3" />
+          {/* 윗면 타원 */}
+          <ellipse cx="50" cy="14" rx="48" ry="12" fill={bg} stroke={border} strokeWidth="3" />
+        </svg>
+        {editing ? (
+          <textarea ref={taRef} value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit}
+            onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Escape') setEditing(false); if (e.key === 'Enter' && e.metaKey) commit(); }}
+            className="nodrag nopan relative z-10 w-3/4 h-1/2 bg-transparent resize-none outline-none text-center text-sm font-medium"
+            style={{ color: data.color ?? '#0c4a6e', fontSize: data.fontSize ?? 12 }} />
+        ) : (
+          <span className="relative z-10 font-medium text-center px-2 break-words whitespace-pre-wrap leading-tight cursor-default select-none"
+            style={{ color: data.color ?? '#0c4a6e', fontSize: data.fontSize ?? 12 }}>
             {data.label}
           </span>
         )}
@@ -471,6 +514,7 @@ const nodeTypes: NodeTypes = {
   rect: RectNode,
   circle: CircleNode,
   diamond: DiamondNode,
+  cylinder: CylinderNode,
   text: TextNode,
   emoji: EmojiNode,
   sticky: StickyNode,
@@ -504,7 +548,7 @@ const BG_COLORS = [
 ];
 const STICKY_COLORS = ['#fef08a','#bbf7d0','#fde68a','#bfdbfe','#f5d0fe','#fed7aa'];
 
-type Tool = 'pan' | 'select' | 'rect' | 'circle' | 'diamond' | 'text' | 'emoji' | 'sticky' | 'erd' | 'image';
+type Tool = 'pan' | 'select' | 'rect' | 'circle' | 'diamond' | 'cylinder' | 'text' | 'emoji' | 'sticky' | 'erd' | 'image';
 
 const uid = () => `node-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
@@ -809,7 +853,7 @@ export function CanvasPage() {
   useEffect(() => {
     const TOOL_MAP: Record<string, Tool> = {
       h: 'pan', v: 'select', r: 'rect', c: 'circle',
-      d: 'diamond', t: 'text', n: 'sticky', e: 'erd', i: 'image',
+      d: 'diamond', y: 'cylinder', t: 'text', n: 'sticky', e: 'erd', i: 'image',
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -853,9 +897,8 @@ export function CanvasPage() {
         const pasted = cb.map((n) => {
           const newId = uid();
           idMap.set(n.id, newId);
-          // React Flow 내부 측정 필드 제거 후 복제
-          const { id: _id, selected: _sel, dragging: _drag, width: _w, height: _h,
-                  positionAbsolute: _pa, measured: _m, ...clean } = n as any;
+          // id/선택/드래그/절대좌표만 제거하고 크기(width/height/measured/style)는 보존해 동일 크기로 복제
+          const { id: _id, selected: _sel, dragging: _drag, positionAbsolute: _pa, ...clean } = n as any;
           return {
             ...clean,
             id: newId,
@@ -912,6 +955,8 @@ export function CanvasPage() {
       newNode = { id: uid(), type: 'circle', position: pos, data: { label, ...color }, style: { width: 130, height: 130 } };
     } else if (tool === 'diamond') {
       newNode = { id: uid(), type: 'diamond', position: pos, data: { label, bg: '#fef3c7', border: '#f59e0b', color: '#92400e' }, style: { width: 140, height: 140 } };
+    } else if (tool === 'cylinder') {
+      newNode = { id: uid(), type: 'cylinder', position: pos, data: { label, bg: '#e0f2fe', border: '#0ea5e9', color: '#0c4a6e' }, style: { width: 120, height: 140 } };
     } else if (tool === 'text') {
       newNode = { id: uid(), type: 'text', position: pos, data: { label, color: '#111827', fontSize: 16 }, style: { width: 160, height: 40 } };
     } else if (tool === 'sticky') {
@@ -962,7 +1007,7 @@ export function CanvasPage() {
       setTool('pan');
       return;
     }
-    if (tool === 'rect' || tool === 'circle' || tool === 'diamond' || tool === 'text' || tool === 'sticky' || tool === 'erd') {
+    if (tool === 'rect' || tool === 'circle' || tool === 'diamond' || tool === 'cylinder' || tool === 'text' || tool === 'sticky' || tool === 'erd') {
       setPendingNode(pos);
       setLabelInput('');
       setShowLabelModal(true);
@@ -1082,6 +1127,7 @@ export function CanvasPage() {
     { id: 'rect',    icon: Square,    label: '사각형',  shortcut: 'R' },
     { id: 'circle',  icon: Circle,    label: '원',      shortcut: 'C' },
     { id: 'diamond', icon: Diamond,   label: '마름모',  shortcut: 'D' },
+    { id: 'cylinder',icon: Cylinder,  label: '원통',    shortcut: 'Y' },
     { id: 'text',    icon: Type,      label: '텍스트',  shortcut: 'T' },
     { id: 'sticky',  icon: Minus,     label: '포스트잇',shortcut: 'N' },
     { id: 'erd',     icon: Table2,    label: 'ERD',     shortcut: 'E' },
