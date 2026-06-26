@@ -1287,11 +1287,14 @@ export function SheetEditorPage() {
   const lastServerUpdatedAt = useRef<string>(''); // 낙관적 락용 — 마지막으로 본 서버 버전
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
+  // 하단 탭 = 현재 문서(root)에 속한 페이지들 (root + 자식)
   const { data: sheets = [] } = useQuery({
-    queryKey: ['sheets', projectId],
-    queryFn: () => sheetsApi.list(projectId!),
-    enabled: !!projectId,
+    queryKey: ['sheet-pages', projectId, sheetId],
+    queryFn: () => sheetsApi.pages(projectId!, sheetId!),
+    enabled: !!projectId && !!sheetId,
   });
+  // root 문서 id (pages 첫 항목이 root). 새 페이지는 이 root에 종속시킴
+  const rootSheetId: string | undefined = sheets[0]?.id ?? sheetId;
 
   const { data: rawSheet } = useQuery({
     queryKey: ['sheet', projectId, sheetId],
@@ -1418,19 +1421,21 @@ export function SheetEditorPage() {
     navigate(`/projects/${projectId}/sheet/${id}`);
   };
 
+  // 에디터에서 만드는 건 현재 문서(root)에 종속된 '페이지'
   const createSheet = useMutation({
-    mutationFn: (name: string) => sheetsApi.create(projectId!, name),
+    mutationFn: (name: string) => sheetsApi.create(projectId!, name, rootSheetId),
     onSuccess: (sheet) => {
-      qc.invalidateQueries({ queryKey: ['sheets', projectId] });
+      qc.invalidateQueries({ queryKey: ['sheet-pages', projectId] });
       setShowNewSheet(false); setNewSheetName('');
       navigate(`/projects/${projectId}/sheet/${sheet.id}`);
     },
-    onError: () => toast.error('시트 생성에 실패했습니다.'),
+    onError: () => toast.error('페이지 생성에 실패했습니다.'),
   });
 
   const deleteSheet = useMutation({
     mutationFn: (id: string) => sheetsApi.remove(projectId!, id),
     onSuccess: (_, id) => {
+      qc.invalidateQueries({ queryKey: ['sheet-pages', projectId] });
       qc.invalidateQueries({ queryKey: ['sheets', projectId] });
       if (id === sheetId) {
         const rem = sheets.filter((s: any) => s.id !== id);
@@ -1442,7 +1447,11 @@ export function SheetEditorPage() {
 
   const renameSheet = useMutation({
     mutationFn: ({ id, name }: { id: string; name: string }) => sheetsApi.rename(projectId!, id, name),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sheets', projectId] }); setRenamingId(null); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sheet-pages', projectId] });
+      qc.invalidateQueries({ queryKey: ['sheets', projectId] });
+      setRenamingId(null);
+    },
     onError: () => toast.error('이름 변경에 실패했습니다.'),
   });
 
@@ -1775,7 +1784,12 @@ export function SheetEditorPage() {
                 className="w-24 text-xs border border-emerald-400 rounded px-1 outline-none bg-white" />
             ) : <span>{sheet.name}</span>}
             {sheets.length > 1 && (
-              <button onClick={e => { e.stopPropagation(); setDeleteTarget({ id: sheet.id, name: sheet.name }); }}
+              <button onClick={e => {
+                  e.stopPropagation();
+                  // 문서(root)는 자식 페이지가 있으면 여기서 삭제 불가 — 목록에서 문서 전체 삭제
+                  if (sheet.id === rootSheetId) { toast('문서 전체는 시트 목록에서 삭제하세요.', { icon: 'ℹ️' }); return; }
+                  setDeleteTarget({ id: sheet.id, name: sheet.name });
+                }}
                 className="hidden group-hover:flex items-center justify-center w-3.5 h-3.5 rounded-full hover:bg-red-100 hover:text-red-500 text-gray-400">
                 <X size={9} />
               </button>
@@ -1787,7 +1801,7 @@ export function SheetEditorPage() {
           <div className="flex items-center gap-1 ml-1">
             <input autoFocus value={newSheetName} onChange={e => setNewSheetName(e.target.value)}
               onKeyDown={e => { if (e.key==='Enter'&&newSheetName.trim()) createSheet.mutate(newSheetName.trim()); if (e.key==='Escape') {setShowNewSheet(false);setNewSheetName('');} }}
-              placeholder="시트 이름" className="w-24 h-6 text-xs border border-emerald-400 rounded px-2 outline-none" />
+              placeholder="페이지 이름" className="w-24 h-6 text-xs border border-emerald-400 rounded px-2 outline-none" />
             <button onClick={() => newSheetName.trim() && createSheet.mutate(newSheetName.trim())}
               className="flex items-center justify-center w-6 h-6 rounded bg-emerald-600 text-white hover:bg-emerald-700"><Check size={11} /></button>
             <button onClick={() => {setShowNewSheet(false);setNewSheetName('');}}
@@ -1796,7 +1810,7 @@ export function SheetEditorPage() {
         ) : (
           <button onClick={() => setShowNewSheet(true)}
             className="flex items-center justify-center w-7 h-7 ml-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors flex-shrink-0"
-            title="새 시트 추가"><Plus size={14} /></button>
+            title="새 페이지 추가"><Plus size={14} /></button>
         )}
       </div>
 
