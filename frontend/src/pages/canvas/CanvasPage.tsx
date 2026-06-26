@@ -19,7 +19,7 @@ import {
   MessageSquare, Send, X, Undo2, Redo2,
   ImageIcon, Lock, Unlock, MagnetIcon, Tag, UserPlus,
   Table2, Plus as PlusIcon, Trash, Cylinder, Frame, Slash, BringToFront, SendToBack,
-  Rows3, CircleDot, CircleStop, Split,
+  Rows3, Columns3, CircleDot, CircleStop, Split,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../../components/ui/Avatar';
@@ -611,11 +611,12 @@ function ImageNode({ id, data, selected }: any) {
   );
 }
 
-// ── 커스텀 노드: 스윔레인(가로 레인 풀) ────────────
+// ── 커스텀 노드: 스윔레인(가로/세로 레인 풀) ────────
 function SwimlaneNode({ id, data, selected }: any) {
   const { setNodes } = useReactFlow();
   const lanes: { id: string; label: string }[] = data.lanes ?? [{ id: 'l1', label: '레인 1' }];
   const headerColor = data.headerColor ?? '#475569';
+  const vertical = data.orientation === 'vertical';
   const [edit, setEdit] = useState<{ kind: 'pool' | 'lane'; laneId?: string } | null>(null);
   const [draft, setDraft] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -630,13 +631,17 @@ function SwimlaneNode({ id, data, selected }: any) {
     }));
     setEdit(null);
   };
-  const curHeight = (n: any) => n.height ?? n.measured?.height ?? (typeof n.style?.height === 'number' ? n.style.height : 240);
+  // 레인 추가/삭제 — 세로는 너비, 가로는 높이를 조절
+  const sizeKey = vertical ? 'width' : 'height';
+  const step = vertical ? 140 : 90;
+  const minSize = vertical ? 280 : 120;
+  const curSize = (n: any) => n[sizeKey] ?? n.measured?.[sizeKey] ?? (typeof n.style?.[sizeKey] === 'number' ? n.style[sizeKey] : (vertical ? 280 : 240));
   const addLane = (e: React.MouseEvent) => {
     e.stopPropagation();
     setNodes((ns) => ns.map((n) => {
       if (n.id !== id) return n;
       const cur = (n.data.lanes as any[]) ?? [];
-      return { ...n, data: { ...n.data, lanes: [...cur, { id: `l${Date.now()}`, label: `레인 ${cur.length + 1}` }] }, style: { ...n.style, height: curHeight(n) + 90 } };
+      return { ...n, data: { ...n.data, lanes: [...cur, { id: `l${Date.now()}`, label: `레인 ${cur.length + 1}` }] }, style: { ...n.style, [sizeKey]: curSize(n) + step } };
     }));
   };
   const removeLane = (laneId: string, e: React.MouseEvent) => {
@@ -645,39 +650,43 @@ function SwimlaneNode({ id, data, selected }: any) {
       if (n.id !== id) return n;
       const cur = (n.data.lanes as any[]) ?? [];
       if (cur.length <= 1) return n;
-      return { ...n, data: { ...n.data, lanes: cur.filter((l) => l.id !== laneId) }, style: { ...n.style, height: Math.max(120, curHeight(n) - 90) } };
+      return { ...n, data: { ...n.data, lanes: cur.filter((l) => l.id !== laneId) }, style: { ...n.style, [sizeKey]: Math.max(minSize, curSize(n) - step) } };
     }));
   };
 
+  // 세로 모드: 제목/라벨 텍스트는 가로(일반), 가로 모드: 세로쓰기(위→아래로 읽힘)
+  const vText: React.CSSProperties = vertical ? {} : { writingMode: 'vertical-rl' };
+  const vInput: React.CSSProperties = vertical ? {} : { writingMode: 'vertical-rl' };
+
   return (
     <>
-      <NodeResizer isVisible={selected && !data.locked} minWidth={280} minHeight={120} handleStyle={{ width: 9, height: 9, borderRadius: 2 }} lineStyle={{ borderColor: headerColor, borderWidth: 1 }} />
+      <NodeResizer isVisible={selected && !data.locked} minWidth={vertical ? 200 : 280} minHeight={vertical ? 220 : 120} handleStyle={{ width: 9, height: 9, borderRadius: 2 }} lineStyle={{ borderColor: headerColor, borderWidth: 1 }} />
       <NodeHandles />
       <NodeOverlay data={data} selected={selected} />
-      <div className="w-full h-full flex rounded-lg overflow-hidden border-2 bg-white" style={{ borderColor: headerColor }}>
-        {/* 풀 제목 (세로) */}
-        <div className="flex-shrink-0 w-7 flex items-center justify-center cursor-text" style={{ background: headerColor }}
+      <div className={cn('w-full h-full flex rounded-lg overflow-hidden border-2 bg-white', vertical && 'flex-col')} style={{ borderColor: headerColor }}>
+        {/* 풀 제목 */}
+        <div className={cn('flex-shrink-0 flex items-center justify-center cursor-text', vertical ? 'h-7 w-full' : 'w-7 h-full')} style={{ background: headerColor }}
           onDoubleClick={(e) => { if (data.locked) return; e.stopPropagation(); begin('pool', undefined, data.label ?? ''); }}>
           {edit?.kind === 'pool' ? (
             <input ref={inputRef} value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit}
               onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEdit(null); }}
-              className="nodrag nopan h-24 text-xs text-center bg-white/90 rounded outline-none" style={{ writingMode: 'vertical-rl' }} />
+              className={cn('nodrag nopan text-xs text-center bg-white/90 rounded outline-none', vertical ? 'w-40' : 'h-24')} style={vInput} />
           ) : (
-            <span className="text-white text-xs font-bold select-none" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>{data.label || 'Pool'}</span>
+            <span className="text-white text-xs font-bold select-none" style={vText}>{data.label || 'Pool'}</span>
           )}
         </div>
         {/* 레인들 */}
-        <div className="flex-1 flex flex-col">
+        <div className={cn('flex-1 flex', vertical ? 'flex-row' : 'flex-col')}>
           {lanes.map((lane, i) => (
-            <div key={lane.id} className={cn('flex-1 flex min-h-[60px]', i > 0 && 'border-t-2')} style={{ borderColor: headerColor }}>
-              <div className="flex-shrink-0 w-6 flex items-center justify-center bg-gray-50 border-r relative group/lane cursor-text" style={{ borderColor: headerColor }}
+            <div key={lane.id} className={cn('flex-1 flex', vertical ? 'flex-col min-w-[80px]' : 'min-h-[60px]', i > 0 && (vertical ? 'border-l-2' : 'border-t-2'))} style={{ borderColor: headerColor }}>
+              <div className={cn('flex-shrink-0 flex items-center justify-center bg-gray-50 relative group/lane cursor-text', vertical ? 'h-6 w-full border-b' : 'w-6 h-full border-r')} style={{ borderColor: headerColor }}
                 onDoubleClick={(e) => { if (data.locked) return; e.stopPropagation(); begin('lane', lane.id, lane.label); }}>
                 {edit?.kind === 'lane' && edit.laneId === lane.id ? (
                   <input ref={inputRef} value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit}
                     onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEdit(null); }}
-                    className="nodrag nopan h-16 text-[11px] text-center bg-white rounded outline-none border" style={{ writingMode: 'vertical-rl' }} />
+                    className={cn('nodrag nopan text-[11px] text-center bg-white rounded outline-none border', vertical ? 'w-24' : 'h-16')} style={vInput} />
                 ) : (
-                  <span className="text-[11px] font-semibold text-gray-600 select-none" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>{lane.label}</span>
+                  <span className="text-[11px] font-semibold text-gray-600 select-none" style={vText}>{lane.label}</span>
                 )}
                 {selected && lanes.length > 1 && (
                   <button onMouseDown={(e) => e.stopPropagation()} onClick={(e) => removeLane(lane.id, e)}
@@ -693,7 +702,8 @@ function SwimlaneNode({ id, data, selected }: any) {
       </div>
       {selected && !data.locked && (
         <button onMouseDown={(e) => e.stopPropagation()} onClick={addLane}
-          className="nodrag absolute -bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border shadow-sm text-[11px] text-gray-600 hover:text-primary-600"
+          className={cn('nodrag absolute z-10 flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border shadow-sm text-[11px] text-gray-600 hover:text-primary-600',
+            vertical ? '-right-3 top-1/2 -translate-y-1/2' : '-bottom-3 left-1/2 -translate-x-1/2')}
           style={{ borderColor: headerColor }} title="레인 추가">
           <PlusIcon size={11} /> 레인
         </button>
@@ -869,7 +879,7 @@ const BG_COLORS = [
 const STICKY_COLORS = ['#fef08a','#bbf7d0','#fde68a','#bfdbfe','#f5d0fe','#fed7aa'];
 const EDGE_COLORS = ['#e60012','#0ea5e9','#10b981','#f59e0b','#a855f7','#ec4899','#64748b','#111827'];
 
-type Tool = 'pan' | 'select' | 'frame' | 'swimlane' | 'bpmnStart' | 'bpmnEnd' | 'gateway' | 'line' | 'rect' | 'circle' | 'diamond' | 'cylinder' | 'text' | 'emoji' | 'sticky' | 'erd' | 'image';
+type Tool = 'pan' | 'select' | 'frame' | 'swimlane' | 'swimlaneV' | 'bpmnStart' | 'bpmnEnd' | 'gateway' | 'line' | 'rect' | 'circle' | 'diamond' | 'cylinder' | 'text' | 'emoji' | 'sticky' | 'erd' | 'image';
 
 const uid = () => `node-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
@@ -1354,7 +1364,9 @@ export function CanvasPage() {
     if (tool === 'frame') {
       newNode = { id: uid(), type: 'frame', position: pos, data: { label: label || '그룹', border: '#6366f1', bg: 'rgba(99,102,241,0.06)' }, style: { width: 320, height: 220 } };
     } else if (tool === 'swimlane') {
-      newNode = { id: uid(), type: 'swimlane', position: pos, data: { label: 'Pool', headerColor: '#475569', lanes: [{ id: 'l1', label: '레인 1' }, { id: 'l2', label: '레인 2' }] }, style: { width: 560, height: 240 } };
+      newNode = { id: uid(), type: 'swimlane', position: pos, data: { label: 'Pool', headerColor: '#475569', orientation: 'horizontal', lanes: [{ id: 'l1', label: '레인 1' }, { id: 'l2', label: '레인 2' }] }, style: { width: 560, height: 240 } };
+    } else if (tool === 'swimlaneV') {
+      newNode = { id: uid(), type: 'swimlane', position: pos, data: { label: 'Pool', headerColor: '#475569', orientation: 'vertical', lanes: [{ id: 'l1', label: '레인 1' }, { id: 'l2', label: '레인 2' }] }, style: { width: 300, height: 360 } };
     } else if (tool === 'bpmnStart') {
       newNode = { id: uid(), type: 'bpmnEvent', position: pos, data: { kind: 'start', label }, style: { width: 54, height: 54 } };
     } else if (tool === 'bpmnEnd') {
@@ -1419,7 +1431,7 @@ export function CanvasPage() {
       target === e.currentTarget;
     if (!isPane) { setTool('select'); return; }
     const pos = getCanvasPosition(e);
-    if (tool === 'image' || tool === 'line' || tool === 'swimlane' || tool === 'bpmnStart' || tool === 'bpmnEnd' || tool === 'gateway') {
+    if (tool === 'image' || tool === 'line' || tool === 'swimlane' || tool === 'swimlaneV' || tool === 'bpmnStart' || tool === 'bpmnEnd' || tool === 'gateway') {
       addNode(pos, '');
       setTool('pan');
       return;
@@ -1594,7 +1606,8 @@ export function CanvasPage() {
   ];
   const shapeTools: { id: Tool; icon: any; label: string; shortcut: string }[] = [
     { id: 'frame',     icon: Frame,      label: '그룹틀',     shortcut: 'F' },
-    { id: 'swimlane',  icon: Rows3,      label: '스윔레인',    shortcut: 'S' },
+    { id: 'swimlane',  icon: Rows3,      label: '스윔레인(가로)', shortcut: 'S' },
+    { id: 'swimlaneV', icon: Columns3,   label: '스윔레인(세로)', shortcut: '' },
     { id: 'bpmnStart', icon: CircleDot,  label: '시작이벤트',  shortcut: '' },
     { id: 'bpmnEnd',   icon: CircleStop, label: '종료이벤트',  shortcut: '' },
     { id: 'gateway',   icon: Split,      label: '게이트웨이',  shortcut: 'G' },
