@@ -17,7 +17,7 @@ import {
   Trash2, MousePointer2, Hand, ZoomIn, ZoomOut, ChevronLeft, Save,
   MessageSquare, Send, X, Undo2, Redo2,
   ImageIcon, Lock, Unlock, MagnetIcon, Tag, UserPlus,
-  Table2, Plus as PlusIcon, Trash, Cylinder,
+  Table2, Plus as PlusIcon, Trash, Cylinder, Frame, Slash,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../../components/ui/Avatar';
@@ -226,6 +226,64 @@ function CylinderNode({ id, data, selected }: any) {
           </span>
         )}
       </div>
+    </>
+  );
+}
+
+// ── 커스텀 노드: 프레임(그룹 컨테이너) ────────────
+// 이동 시 내부에 담긴 도형들이 함께 따라온다(master-slave). 도형을 안으로 드래그하면 자식으로 편입.
+function FrameNode({ id, data, selected }: any) {
+  const { setNodes } = useReactFlow();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(data.label ?? '');
+  const titleRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (editing && titleRef.current) { titleRef.current.focus(); titleRef.current.select(); } }, [editing]);
+  const commit = () => {
+    setNodes((ns) => ns.map((n) => n.id === id ? { ...n, data: { ...n.data, label: draft } } : n));
+    setEditing(false);
+  };
+  const border = data.border ?? '#6366f1';
+  const bg = data.bg ?? 'rgba(99,102,241,0.06)';
+  return (
+    <>
+      <NodeResizer isVisible={selected && !data.locked} minWidth={180} minHeight={130} handleStyle={{ width: 9, height: 9, borderRadius: 2 }} lineStyle={{ borderColor: border, borderWidth: 1 }} />
+      {!editing && <NodeHandles />}
+      <NodeOverlay data={data} selected={selected} />
+      <div className={cn('w-full h-full rounded-xl border-2 border-dashed flex flex-col', selected && 'ring-2 ring-indigo-400/60 ring-offset-1')}
+        style={{ borderColor: border, background: bg }}>
+        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-t-xl flex-shrink-0" style={{ background: 'rgba(255,255,255,0.65)' }}
+          onDoubleClick={(e) => { if (data.locked) return; e.stopPropagation(); setDraft(data.label ?? ''); setEditing(true); }}>
+          <Frame size={12} style={{ color: border }} className="flex-shrink-0" />
+          {editing ? (
+            <input ref={titleRef} value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit}
+              onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
+              className="nodrag nopan flex-1 min-w-0 bg-white/80 text-xs font-bold outline-none rounded px-1 py-0.5"
+              style={{ color: border }} />
+          ) : (
+            <span className="text-xs font-bold truncate cursor-default select-none" style={{ color: border }}>
+              {data.label || '그룹'}
+            </span>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── 커스텀 노드: 선(독립 라인) ────────────────────
+// 박스 모서리(좌상단↔우하단)를 잇는 선. 리사이즈로 길이·각도 조절. 색은 data.border.
+function LineNode({ data, selected }: any) {
+  const stroke = data.border ?? '#e60012';
+  return (
+    <>
+      <NodeResizer isVisible={selected && !data.locked} minWidth={16} minHeight={16} handleStyle={{ width: 8, height: 8, borderRadius: 2 }} lineStyle={RESIZER_STYLE} />
+      <NodeOverlay data={data} selected={selected} />
+      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+        {/* 클릭 히트 영역(투명, 두껍게) */}
+        <line x1="3" y1="3" x2="97" y2="97" stroke="transparent" strokeWidth="16" vectorEffect="non-scaling-stroke" />
+        <line x1="3" y1="3" x2="97" y2="97" stroke={stroke} strokeWidth={data.strokeWidth ?? 3} strokeLinecap="round" vectorEffect="non-scaling-stroke"
+          style={{ filter: selected ? 'drop-shadow(0 0 1px #ff9090)' : undefined }} />
+      </svg>
     </>
   );
 }
@@ -511,6 +569,8 @@ function ImageNode({ id, data, selected }: any) {
 }
 
 const nodeTypes: NodeTypes = {
+  frame: FrameNode,
+  line: LineNode,
   rect: RectNode,
   circle: CircleNode,
   diamond: DiamondNode,
@@ -547,8 +607,9 @@ const BG_COLORS = [
   { bg: '#ffffff', border: '#d1d5db', color: '#111827' },
 ];
 const STICKY_COLORS = ['#fef08a','#bbf7d0','#fde68a','#bfdbfe','#f5d0fe','#fed7aa'];
+const EDGE_COLORS = ['#e60012','#0ea5e9','#10b981','#f59e0b','#a855f7','#ec4899','#64748b','#111827'];
 
-type Tool = 'pan' | 'select' | 'rect' | 'circle' | 'diamond' | 'cylinder' | 'text' | 'emoji' | 'sticky' | 'erd' | 'image';
+type Tool = 'pan' | 'select' | 'frame' | 'line' | 'rect' | 'circle' | 'diamond' | 'cylinder' | 'text' | 'emoji' | 'sticky' | 'erd' | 'image';
 
 const uid = () => `node-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
@@ -771,20 +832,27 @@ export function CanvasPage() {
     syncHistFlags();
   }, [initialized, serialize, syncHistFlags]);
 
-  // 변경이 멈추면(400ms) 직전 상태를 past에 기록
+  // 변경 기록 — React Flow 스토어를 주기적으로 폴링해 직전 상태를 past에 기록.
+  // 노드 내부 setNodes(라벨/ERD 편집 등)는 페이지 nodes state/onNodesChange를 거치지 않아
+  // [nodes] 의존 effect로는 스냅샷이 누락됨 → 스토어(getNodes) 기준으로 모든 편집을 개별 기록.
   useEffect(() => {
-    if (!initialized || isRestoringRef.current) return;
-    const t = setTimeout(() => {
-      const snap = serialize(nodesRef.current, edgesRef.current);
+    if (!initialized) return;
+    const id = setInterval(() => {
+      if (isRestoringRef.current) return;
+      const inst = rfInstanceRef.current;
+      const ns = inst?.getNodes ? inst.getNodes() : nodesRef.current;
+      const es = inst?.getEdges ? inst.getEdges() : edgesRef.current;
+      if (ns.some((n: any) => n.dragging)) return; // 드래그 진행 중엔 기록 보류
+      const snap = serialize(ns, es);
       if (snap === lastSnapRef.current) return;
       historyRef.current.past.push(lastSnapRef.current);
       if (historyRef.current.past.length > 100) historyRef.current.past.shift();
       historyRef.current.future = [];
       lastSnapRef.current = snap;
       syncHistFlags();
-    }, 400);
-    return () => clearTimeout(t);
-  }, [nodes, edges, initialized, serialize, syncHistFlags]);
+    }, 500);
+    return () => clearInterval(id);
+  }, [initialized, serialize, syncHistFlags]);
 
   const applySnapshot = useCallback((snap: string) => {
     const parsed = JSON.parse(snap);
@@ -852,8 +920,8 @@ export function CanvasPage() {
   // ── 도구 단축키 (독립 effect, capture 단계) ───────────
   useEffect(() => {
     const TOOL_MAP: Record<string, Tool> = {
-      h: 'pan', v: 'select', r: 'rect', c: 'circle',
-      d: 'diamond', y: 'cylinder', t: 'text', n: 'sticky', e: 'erd', i: 'image',
+      h: 'pan', v: 'select', f: 'frame', r: 'rect', c: 'circle',
+      d: 'diamond', y: 'cylinder', l: 'line', t: 'text', n: 'sticky', e: 'erd', i: 'image',
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -894,7 +962,7 @@ export function CanvasPage() {
         const offset = 48;
         // 원본 id → 새 id 매핑 (엣지 재연결용)
         const idMap = new Map<string, string>();
-        const pasted = cb.map((n) => {
+        const pasted: any[] = cb.map((n) => {
           const newId = uid();
           idMap.set(n.id, newId);
           // id/선택/드래그/절대좌표만 제거하고 크기(width/height/measured/style)는 보존해 동일 크기로 복제
@@ -902,11 +970,24 @@ export function CanvasPage() {
           return {
             ...clean,
             id: newId,
-            position: { x: n.position.x + offset, y: n.position.y + offset },
+            _origParent: (n as any).parentId,
+            position: { x: n.position.x, y: n.position.y },
             selected: true,
             data: { ...n.data },
           };
         });
+        // 부모-자식 관계 재매핑: 부모도 함께 복사됐으면 새 id로 연결(상대좌표 유지), 아니면 최상위로 분리 후 오프셋
+        pasted.forEach((p) => {
+          const parentCopied = p._origParent && idMap.has(p._origParent);
+          if (p.parentId) {
+            if (parentCopied) p.parentId = idMap.get(p._origParent);
+            else { delete p.parentId; delete p.extent; }
+          }
+          if (!parentCopied) p.position = { x: p.position.x + offset, y: p.position.y + offset };
+          delete p._origParent;
+        });
+        // 부모가 자식보다 앞서도록 정렬
+        pasted.sort((a, b) => (a.parentId ? 1 : 0) - (b.parentId ? 1 : 0));
         // 복사된 노드들 사이에 연결된 엣지만 새 id로 함께 복제
         const copiedEdges = edgesRef.current
           .filter((ed) => idMap.has(ed.source) && idMap.has(ed.target))
@@ -939,6 +1020,47 @@ export function CanvasPage() {
     }, eds));
   }, [setEdges]);
 
+  // 프레임 편입/이탈 — 드래그 종료 시 도형 중심이 어느 프레임 안에 있으면 그 프레임의 자식으로 편입
+  const onNodeDragStop = useCallback((_e: any, node: Node) => {
+    if (node.type === 'frame') return; // 프레임 자체는 다른 프레임에 넣지 않음(중첩 비허용)
+    const all = nodesRef.current as any[];
+    const dim = (nd: any, key: 'width' | 'height') =>
+      nd[key] ?? nd.measured?.[key] ?? (typeof nd.style?.[key] === 'number' ? nd.style[key] : 0) ?? 0;
+    const getAbs = (nd: any) => {
+      if (nd.parentId) {
+        const p = all.find((x) => x.id === nd.parentId);
+        if (p) return { x: p.position.x + nd.position.x, y: p.position.y + nd.position.y };
+      }
+      return { x: nd.position.x, y: nd.position.y };
+    };
+    const abs = getAbs(node);
+    const cx = abs.x + dim(node, 'width') / 2;
+    const cy = abs.y + dim(node, 'height') / 2;
+    const target = all.find((f) => {
+      if (f.type !== 'frame' || f.id === node.id) return false;
+      const fw = dim(f, 'width'), fh = dim(f, 'height');
+      return cx >= f.position.x && cx <= f.position.x + fw && cy >= f.position.y && cy <= f.position.y + fh;
+    });
+    if (target && node.parentId !== target.id) {
+      // 편입: 좌표를 프레임 기준 상대좌표로 변환 + 부모가 자식보다 앞서도록 정렬
+      const rel = { x: abs.x - target.position.x, y: abs.y - target.position.y };
+      isDirty.current = true;
+      setNodes((ns) => {
+        // extent:'parent'는 주지 않음 — 프레임 밖으로 드래그해 이탈할 수 있어야 하므로 parentId만 설정
+        const upd = ns.map((n) => n.id === node.id
+          ? ({ ...n, parentId: target.id, position: rel } as any)
+          : n);
+        return [...upd].sort((a: any, b: any) => (a.parentId ? 1 : 0) - (b.parentId ? 1 : 0));
+      });
+    } else if (!target && node.parentId) {
+      // 이탈: 절대좌표로 복원
+      isDirty.current = true;
+      setNodes((ns) => ns.map((n) => n.id === node.id
+        ? ({ ...n, parentId: undefined, extent: undefined, position: abs } as any)
+        : n));
+    }
+  }, [setNodes]);
+
   const getCanvasPosition = useCallback((e: React.MouseEvent) => {
     if (!rfInstance || !reactFlowWrapper.current) return { x: 200, y: 200 };
     const bounds = reactFlowWrapper.current.getBoundingClientRect();
@@ -949,7 +1071,9 @@ export function CanvasPage() {
     const color = BG_COLORS[selectedColor];
     const stickyBg = STICKY_COLORS[selectedSticky];
     let newNode: Node;
-    if (tool === 'rect') {
+    if (tool === 'frame') {
+      newNode = { id: uid(), type: 'frame', position: pos, data: { label: label || '그룹', border: '#6366f1', bg: 'rgba(99,102,241,0.06)' }, style: { width: 320, height: 220 } };
+    } else if (tool === 'rect') {
       newNode = { id: uid(), type: 'rect', position: pos, data: { label, ...color }, style: { width: 180, height: 90 } };
     } else if (tool === 'circle') {
       newNode = { id: uid(), type: 'circle', position: pos, data: { label, ...color }, style: { width: 130, height: 130 } };
@@ -983,13 +1107,16 @@ export function CanvasPage() {
         },
         style: { width: 260, height: 'auto' },
       };
+    } else if (tool === 'line') {
+      newNode = { id: uid(), type: 'line', position: pos, data: { border: color.border, strokeWidth: 3 }, style: { width: 160, height: 90 } };
     } else if (tool === 'image') {
       newNode = { id: uid(), type: 'image', position: pos, data: { label: '' }, style: { width: 200, height: 150 } };
     } else {
       return;
     }
     isDirty.current = true;
-    setNodes((ns) => [...ns, newNode]);
+    // 프레임은 배열 앞에 둬서 자식 도형들보다 뒤(아래)에 렌더되도록
+    setNodes((ns) => newNode.type === 'frame' ? [newNode, ...ns] : [...ns, newNode]);
     setTool('pan');
   }, [tool, selectedColor, selectedSticky, setNodes]);
 
@@ -1002,12 +1129,12 @@ export function CanvasPage() {
       target === e.currentTarget;
     if (!isPane) { setTool('select'); return; }
     const pos = getCanvasPosition(e);
-    if (tool === 'image') {
+    if (tool === 'image' || tool === 'line') {
       addNode(pos, '');
       setTool('pan');
       return;
     }
-    if (tool === 'rect' || tool === 'circle' || tool === 'diamond' || tool === 'cylinder' || tool === 'text' || tool === 'sticky' || tool === 'erd') {
+    if (tool === 'frame' || tool === 'rect' || tool === 'circle' || tool === 'diamond' || tool === 'cylinder' || tool === 'text' || tool === 'sticky' || tool === 'erd') {
       setPendingNode(pos);
       setLabelInput('');
       setShowLabelModal(true);
@@ -1024,7 +1151,17 @@ export function CanvasPage() {
 
   const deleteSelected = useCallback(() => {
     isDirty.current = true;
-    setNodes((ns) => ns.filter((n) => !n.selected));
+    setNodes((ns) => {
+      // 삭제되는 프레임의 자식은 절대좌표로 분리(부모 참조 끊김 방지)
+      const removedFrames = new Map(
+        ns.filter((n) => n.selected && n.type === 'frame').map((n) => [n.id, n.position]),
+      );
+      return ns.filter((n) => !n.selected).map((n) => {
+        const fp = n.parentId ? removedFrames.get(n.parentId) : undefined;
+        if (fp) return { ...n, parentId: undefined, extent: undefined, position: { x: fp.x + n.position.x, y: fp.y + n.position.y } } as any;
+        return n;
+      });
+    });
     setEdges((es) => es.filter((e) => !e.selected));
   }, [setNodes, setEdges]);
 
@@ -1052,7 +1189,16 @@ export function CanvasPage() {
 
   const contextDelete = useCallback(() => {
     isDirty.current = true;
-    if (contextMenu?.nodeId) setNodes((ns) => ns.filter((n) => n.id !== contextMenu.nodeId));
+    if (contextMenu?.nodeId) setNodes((ns) => {
+      const del = ns.find((n) => n.id === contextMenu.nodeId);
+      const framePos = del?.type === 'frame' ? del.position : undefined;
+      return ns.filter((n) => n.id !== contextMenu.nodeId).map((n) => {
+        if (framePos && n.parentId === contextMenu.nodeId) {
+          return { ...n, parentId: undefined, extent: undefined, position: { x: framePos.x + n.position.x, y: framePos.y + n.position.y } } as any;
+        }
+        return n;
+      });
+    });
     if (contextMenu?.edgeId) setEdges((es) => es.filter((e) => e.id !== contextMenu.edgeId));
     setContextMenu(null);
   }, [contextMenu, setNodes, setEdges]);
@@ -1107,6 +1253,20 @@ export function CanvasPage() {
     setContextMenu(null);
   }, [setEdges]);
 
+  // ── 연결선 색상 변경 (선 + 화살표 머리 동일 색) ─────
+  const changeEdgeColor = useCallback((color: string) => {
+    if (!contextMenu?.edgeId) return;
+    isDirty.current = true;
+    setEdges((es) => es.map((e) => e.id === contextMenu.edgeId
+      ? {
+          ...e,
+          style: { ...(e.style as any), stroke: color },
+          markerEnd: { ...(typeof e.markerEnd === 'object' ? e.markerEnd : {}), type: MarkerType.ArrowClosed, color },
+        }
+      : e));
+    setContextMenu(null);
+  }, [contextMenu, setEdges]);
+
   // ── 담당자 토글 ────────────────────────────────────
   const toggleAssignee = useCallback((nodeId: string, u: any) => {
     isDirty.current = true;
@@ -1124,10 +1284,12 @@ export function CanvasPage() {
     { id: 'select', icon: MousePointer2, label: '선택',   shortcut: 'V' },
   ];
   const shapeTools: { id: Tool; icon: any; label: string; shortcut: string }[] = [
+    { id: 'frame',   icon: Frame,     label: '그룹틀',  shortcut: 'F' },
     { id: 'rect',    icon: Square,    label: '사각형',  shortcut: 'R' },
     { id: 'circle',  icon: Circle,    label: '원',      shortcut: 'C' },
     { id: 'diamond', icon: Diamond,   label: '마름모',  shortcut: 'D' },
     { id: 'cylinder',icon: Cylinder,  label: '원통',    shortcut: 'Y' },
+    { id: 'line',    icon: Slash,     label: '선',      shortcut: 'L' },
     { id: 'text',    icon: Type,      label: '텍스트',  shortcut: 'T' },
     { id: 'sticky',  icon: Minus,     label: '포스트잇',shortcut: 'N' },
     { id: 'erd',     icon: Table2,    label: 'ERD',     shortcut: 'E' },
@@ -1373,6 +1535,7 @@ export function CanvasPage() {
           }}
           onNodeContextMenu={onNodeContextMenu}
           onEdgeContextMenu={onEdgeContextMenu}
+          onNodeDragStop={onNodeDragStop}
           onSelectionChange={onSelectionChange}
           onPaneClick={() => { closeContextMenu(); }}
           fitView
@@ -1535,9 +1698,20 @@ export function CanvasPage() {
                 <div className="border-t border-gray-100 my-1" />
               </>
             )}
-            {/* 엣지 라벨 편집 */}
+            {/* 엣지 색상 + 라벨 편집 */}
             {contextMenu.edgeId && (
               <>
+                <div className="px-3 py-2">
+                  <p className="text-[11px] text-gray-400 mb-1.5">선 색상</p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {EDGE_COLORS.map((c) => (
+                      <button key={c} onClick={() => changeEdgeColor(c)}
+                        className="w-5 h-5 rounded-full border border-gray-200 hover:scale-110 transition-transform"
+                        style={{ backgroundColor: c }} title={c} />
+                    ))}
+                  </div>
+                </div>
+                <div className="border-t border-gray-100 my-1" />
                 <button onClick={() => {
                   const edge = edges.find((e) => e.id === contextMenu.edgeId);
                   setEdgeLabelEdit({ edgeId: contextMenu.edgeId!, label: String(edge?.label ?? '') });
