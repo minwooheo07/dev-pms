@@ -17,7 +17,7 @@ import {
   Trash2, MousePointer2, Hand, ZoomIn, ZoomOut, ChevronLeft, Save,
   MessageSquare, Send, X, Undo2, Redo2,
   ImageIcon, Lock, Unlock, MagnetIcon, Tag, UserPlus,
-  Table2, Plus as PlusIcon, Trash, Cylinder, Frame, Slash,
+  Table2, Plus as PlusIcon, Trash, Cylinder, Frame, Slash, BringToFront, SendToBack,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import { Avatar } from '../../components/ui/Avatar';
@@ -271,20 +271,61 @@ function FrameNode({ id, data, selected }: any) {
 }
 
 // ── 커스텀 노드: 선(독립 라인) ────────────────────
-// 박스 모서리(좌상단↔우하단)를 잇는 선. 리사이즈로 길이·각도 조절. 색은 data.border.
-function LineNode({ data, selected }: any) {
+// 양 끝점(p1,p2)을 자유롭게 드래그해 어떤 각도로도 그릴 수 있다. 좌표는 노드 기준 로컬 픽셀.
+function LineNode({ id, data, selected }: any) {
+  const { setNodes, getZoom } = useReactFlow();
   const stroke = data.border ?? '#e60012';
+  const sw = data.strokeWidth ?? 3;
+  const x1 = data.x1 ?? 0, y1 = data.y1 ?? 0, x2 = data.x2 ?? 140, y2 = data.y2 ?? 0;
+
+  const startDragEnd = (which: 1 | 2) => (e: React.PointerEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const sx = e.clientX, sy = e.clientY;
+    const ox = which === 1 ? x1 : x2;
+    const oy = which === 1 ? y1 : y2;
+    const zoom = getZoom() || 1;
+    const target = e.currentTarget as HTMLElement;
+    target.setPointerCapture?.(e.pointerId);
+    const kx = which === 1 ? 'x1' : 'x2';
+    const ky = which === 1 ? 'y1' : 'y2';
+    const move = (mv: PointerEvent) => {
+      const nx = ox + (mv.clientX - sx) / zoom;
+      const ny = oy + (mv.clientY - sy) / zoom;
+      setNodes((ns) => ns.map((n) => n.id === id ? { ...n, data: { ...n.data, [kx]: nx, [ky]: ny } } : n));
+    };
+    const up = () => {
+      target.removeEventListener('pointermove', move);
+      target.removeEventListener('pointerup', up);
+      try { target.releasePointerCapture?.(e.pointerId); } catch { /* noop */ }
+    };
+    target.addEventListener('pointermove', move);
+    target.addEventListener('pointerup', up);
+  };
+
+  const dot = (x: number, y: number): React.CSSProperties => ({
+    position: 'absolute', left: x - 6, top: y - 6, width: 12, height: 12, borderRadius: '50%',
+    background: '#fff', border: `2px solid ${stroke}`, boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+    cursor: 'move', zIndex: 20, pointerEvents: 'auto',
+  });
+
+  // 음수 좌표(끝점을 위/왼쪽으로 이동)도 안전하게 그리기 위해 큰 SVG 영역에 오프셋 적용
+  const PAD = 4000;
   return (
-    <>
-      <NodeResizer isVisible={selected && !data.locked} minWidth={16} minHeight={16} handleStyle={{ width: 8, height: 8, borderRadius: 2 }} lineStyle={RESIZER_STYLE} />
-      <NodeOverlay data={data} selected={selected} />
-      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-        {/* 클릭 히트 영역(투명, 두껍게) */}
-        <line x1="3" y1="3" x2="97" y2="97" stroke="transparent" strokeWidth="16" vectorEffect="non-scaling-stroke" />
-        <line x1="3" y1="3" x2="97" y2="97" stroke={stroke} strokeWidth={data.strokeWidth ?? 3} strokeLinecap="round" vectorEffect="non-scaling-stroke"
+    <div style={{ position: 'relative', width: 1, height: 1 }}>
+      <svg style={{ position: 'absolute', left: -PAD, top: -PAD, width: PAD * 2, height: PAD * 2, pointerEvents: 'none' }}>
+        {/* 히트 영역(투명, 두껍게) — 선 위 클릭/드래그로 노드 이동 */}
+        <line x1={x1 + PAD} y1={y1 + PAD} x2={x2 + PAD} y2={y2 + PAD} stroke="transparent" strokeWidth={Math.max(16, sw + 12)} strokeLinecap="round" style={{ pointerEvents: 'stroke' }} />
+        <line x1={x1 + PAD} y1={y1 + PAD} x2={x2 + PAD} y2={y2 + PAD} stroke={stroke} strokeWidth={sw} strokeLinecap="round"
           style={{ filter: selected ? 'drop-shadow(0 0 1px #ff9090)' : undefined }} />
       </svg>
-    </>
+      {selected && !data.locked && (
+        <>
+          <span className="nodrag nopan" style={dot(x1, y1)} onPointerDown={startDragEnd(1)} />
+          <span className="nodrag nopan" style={dot(x2, y2)} onPointerDown={startDragEnd(2)} />
+        </>
+      )}
+    </div>
   );
 }
 
@@ -1108,7 +1149,8 @@ export function CanvasPage() {
         style: { width: 260, height: 'auto' },
       };
     } else if (tool === 'line') {
-      newNode = { id: uid(), type: 'line', position: pos, data: { border: color.border, strokeWidth: 3 }, style: { width: 160, height: 90 } };
+      // 기본 수평선(끝점은 LineNode에서 드래그로 자유 조절)
+      newNode = { id: uid(), type: 'line', position: pos, data: { border: color.border, strokeWidth: 3, x1: 0, y1: 0, x2: 140, y2: 0 } };
     } else if (tool === 'image') {
       newNode = { id: uid(), type: 'image', position: pos, data: { label: '' }, style: { width: 200, height: 150 } };
     } else {
@@ -1242,6 +1284,25 @@ export function CanvasPage() {
     setNodes((ns) => ns.map((n) => n.id === nodeId
       ? { ...n, draggable: !!n.data.locked, data: { ...n.data, locked: !n.data.locked } }
       : n));
+    setContextMenu(null);
+  }, [setNodes]);
+
+  // ── 쌓임 순서(z-index) ─────────────────────────────
+  const bringToFront = useCallback((nodeId: string) => {
+    isDirty.current = true;
+    setNodes((ns) => {
+      const maxZ = ns.reduce((m, n) => Math.max(m, (n as any).zIndex ?? 0), 0);
+      return ns.map((n) => n.id === nodeId ? ({ ...n, zIndex: maxZ + 1 } as any) : n);
+    });
+    setContextMenu(null);
+  }, [setNodes]);
+
+  const sendToBack = useCallback((nodeId: string) => {
+    isDirty.current = true;
+    setNodes((ns) => {
+      const minZ = ns.reduce((m, n) => Math.min(m, (n as any).zIndex ?? 0), 0);
+      return ns.map((n) => n.id === nodeId ? ({ ...n, zIndex: minZ - 1 } as any) : n);
+    });
     setContextMenu(null);
   }, [setNodes]);
 
@@ -1682,6 +1743,17 @@ export function CanvasPage() {
                     </div>
                   </>
                 )}
+
+                {/* 쌓임 순서 */}
+                <div className="border-t border-gray-100 my-1" />
+                <button onClick={() => bringToFront(contextMenu.nodeId!)}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                  <BringToFront size={14} /> 맨 앞으로
+                </button>
+                <button onClick={() => sendToBack(contextMenu.nodeId!)}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                  <SendToBack size={14} /> 맨 뒤로
+                </button>
 
                 {/* 잠금 / 담당자 */}
                 <div className="border-t border-gray-100 my-1" />
