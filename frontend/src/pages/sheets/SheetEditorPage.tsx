@@ -1283,6 +1283,7 @@ export function SheetEditorPage() {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const sheetDataRef = useRef<SheetData>(emptyData());
   const dataLoadedRef = useRef(false);
+  const loadedKeyRef = useRef<string | null>(null); // 로드 완료한 시트 키 — 재요청으로 로컬 덮어쓰기 방지
   const lastServerUpdatedAt = useRef<string>(''); // 낙관적 락용 — 마지막으로 본 서버 버전
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
@@ -1298,10 +1299,14 @@ export function SheetEditorPage() {
     enabled: !!projectId && !!sheetId,
     staleTime: 10_000,
     refetchOnMount: false,
+    refetchOnWindowFocus: false, // 다른 창에서 복사 후 복귀 시 재요청으로 미저장 편집이 덮어쓰이는 것 방지
   });
 
   useEffect(() => {
     if (rawSheet?.updatedAt) lastServerUpdatedAt.current = rawSheet.updatedAt;
+    const key = `${projectId}/${sheetId}`;
+    // 이미 이 시트를 로드했으면, 이후 서버 재요청 결과로 로컬(미저장 편집)을 덮어쓰지 않음
+    if (loadedKeyRef.current === key) return;
     if (rawSheet?.data) {
       const d = rawSheet.data as any;
       const parsed: SheetData = {
@@ -1314,10 +1319,12 @@ export function SheetEditorPage() {
       setSheetData(parsed);
       sheetDataRef.current = parsed;
       dataLoadedRef.current = true;
+      loadedKeyRef.current = key;
     } else if (rawSheet) {
       setSheetData(emptyData());
+      loadedKeyRef.current = key;
     }
-  }, [rawSheet]);
+  }, [rawSheet, projectId, sheetId]);
 
   const saveMutation = useMutation({
     // 마지막으로 본 서버 버전을 함께 보내 낙관적 락 검증
