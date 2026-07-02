@@ -13,6 +13,9 @@ export interface FormField {
   required?: boolean;
   options?: string[]; // singleSelect / dropdown / checkbox
   content?: string; // title / body 표시용 텍스트
+  width?: number; // 폭 % (25/33/50/66/75/100, 기본 100) — 좁히면 옆 항목과 나란히 배치
+  fontSize?: number; // 글자 크기 px (기본: title 16, body 14, 입력 14)
+  align?: 'left' | 'center' | 'right'; // title/body 정렬
 }
 
 export interface FormTemplate {

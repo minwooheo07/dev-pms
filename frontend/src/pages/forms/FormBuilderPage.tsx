@@ -189,14 +189,15 @@ export function FormBuilderPage() {
 
           {/* 중앙 캔버스 */}
           <div className="flex-1 overflow-y-auto p-6">
-            <div className="max-w-xl mx-auto space-y-2">
+            <div className="max-w-xl mx-auto flex flex-wrap gap-2">
               {fields.length === 0 && (
-                <div className="text-center py-16 text-sm text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+                <div className="w-full text-center py-16 text-sm text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
                   좌측 위젯을 클릭해서 항목을 추가하세요
                 </div>
               )}
               {fields.map((f, idx) => {
                 const Icon = PALETTE.find((p) => p.type === f.type)?.icon ?? Type;
+                const w = f.width ?? 100;
                 return (
                   <div
                     key={f.id}
@@ -205,6 +206,7 @@ export function FormBuilderPage() {
                     onDragOver={(e) => onDragOver(e, idx)}
                     onDrop={() => onDrop(idx)}
                     onClick={() => setSelectedId(f.id)}
+                    style={{ flexBasis: `calc(${w}% - 8px)`, flexGrow: 0, flexShrink: 0 }}
                     className={cn(
                       'group flex items-center gap-2 px-3 py-2.5 rounded-lg border bg-white cursor-pointer transition-colors',
                       selectedId === f.id ? 'border-primary-400 ring-2 ring-primary-100' : 'border-gray-200 hover:border-gray-300',
@@ -215,7 +217,11 @@ export function FormBuilderPage() {
                     <Icon size={15} className="text-gray-400 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-gray-700 truncate">{f.label}</p>
-                      <p className="text-[11px] text-gray-400">{PALETTE.find((p) => p.type === f.type)?.label}</p>
+                      <p className="text-[11px] text-gray-400">
+                        {PALETTE.find((p) => p.type === f.type)?.label}
+                        {w !== 100 && <span className="ml-1 text-primary-500">· {WIDTH_OPTIONS.find((o) => o.value === w)?.label ?? `${w}%`}</span>}
+                        {f.fontSize && <span className="ml-1 text-primary-500">· {f.fontSize}px</span>}
+                      </p>
                     </div>
                     {f.required && <span className="text-[10px] text-red-500 flex-shrink-0">필수</span>}
                     <button
@@ -244,6 +250,15 @@ export function FormBuilderPage() {
   );
 }
 
+const WIDTH_OPTIONS = [
+  { value: 100, label: '전체' },
+  { value: 75, label: '3/4' },
+  { value: 66, label: '2/3' },
+  { value: 50, label: '1/2' },
+  { value: 33, label: '1/3' },
+  { value: 25, label: '1/4' },
+];
+
 function FieldProperties({ field, onChange }: { field: FormField; onChange: (patch: Partial<FormField>) => void }) {
   const isDisplay = IS_DISPLAY_ONLY.includes(field.type);
   const hasOptions = HAS_OPTIONS.includes(field.type);
@@ -252,9 +267,73 @@ function FieldProperties({ field, onChange }: { field: FormField; onChange: (pat
   const updateOption = (i: number, v: string) => onChange({ options: (field.options ?? []).map((o, idx) => (idx === i ? v : o)) });
   const removeOption = (i: number) => onChange({ options: (field.options ?? []).filter((_, idx) => idx !== i) });
 
+  const defaultFs = field.type === 'title' ? 16 : 14;
+  const fs = field.fontSize ?? defaultFs;
+
   return (
     <div className="space-y-4">
       <p className="text-xs font-semibold text-gray-400">{PALETTE.find((p) => p.type === field.type)?.label} 속성</p>
+
+      {/* 폭 — 좁히면 옆 항목과 나란히 배치 */}
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-medium text-gray-500">폭 (좁히면 옆 항목과 나란히 배치)</label>
+        <div className="grid grid-cols-3 gap-1">
+          {WIDTH_OPTIONS.map((w) => (
+            <button
+              key={w.value}
+              onClick={() => onChange({ width: w.value })}
+              className={cn(
+                'text-xs px-2 py-1.5 rounded-lg border transition-colors',
+                (field.width ?? 100) === w.value
+                  ? 'bg-primary-600 text-white border-primary-600'
+                  : 'border-gray-200 text-gray-500 hover:border-gray-300',
+              )}
+            >
+              {w.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 글자 크기 */}
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-medium text-gray-500">글자 크기 <span className="text-gray-400">{fs}px</span></label>
+        <div className="flex items-center gap-2">
+          <input
+            type="range" min={10} max={28} step={1} value={fs}
+            onChange={(e) => onChange({ fontSize: Number(e.target.value) })}
+            className="flex-1 accent-primary-600"
+          />
+          <button
+            onClick={() => onChange({ fontSize: undefined })}
+            className="text-[11px] text-gray-400 hover:text-gray-600"
+            title="기본값으로"
+          >초기화</button>
+        </div>
+      </div>
+
+      {/* 정렬 — 제목/본문만 */}
+      {isDisplay && (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-gray-500">정렬</label>
+          <div className="grid grid-cols-3 gap-1">
+            {([['left', '왼쪽'], ['center', '가운데'], ['right', '오른쪽']] as const).map(([v, label]) => (
+              <button
+                key={v}
+                onClick={() => onChange({ align: v })}
+                className={cn(
+                  'text-xs px-2 py-1.5 rounded-lg border transition-colors',
+                  (field.align ?? 'left') === v
+                    ? 'bg-primary-600 text-white border-primary-600'
+                    : 'border-gray-200 text-gray-500 hover:border-gray-300',
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col gap-1.5">
         <label className="text-xs font-medium text-gray-500">{isDisplay ? '내용' : '라벨'}</label>
