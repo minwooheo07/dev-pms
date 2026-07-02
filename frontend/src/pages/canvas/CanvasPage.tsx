@@ -800,15 +800,17 @@ function EditableEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, 
   const hasWp = (data as any)?.mx != null && (data as any)?.my != null;
   let path: string, lx: number, ly: number;
   if (hasWp) {
+    // 수동 꺾기 — 직각 대신 꺾임점을 제어점으로 한 부드러운 곡선(둥근 느낌)
     const mx = (data as any).mx as number, my = (data as any).my as number;
-    path = `M ${sourceX},${sourceY} L ${mx},${my} L ${targetX},${targetY}`;
+    path = `M ${sourceX},${sourceY} Q ${mx},${my} ${targetX},${targetY}`;
     lx = mx; ly = my;
   } else {
     const shape = (data as any)?.shape ?? 'curve';
     const args = { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition };
     const [p, labelX, labelY] =
       shape === 'straight' ? getStraightPath({ sourceX, sourceY, targetX, targetY })
-      : shape === 'step' ? getSmoothStepPath(args)
+      // 'rounded' = 꺾은선이지만 모서리를 크게 둥글림 (직각 대신)
+      : shape === 'step' || shape === 'rounded' ? getSmoothStepPath({ ...args, borderRadius: 24 })
       : getBezierPath(args);
     path = p; lx = labelX; ly = labelY;
   }
@@ -1300,7 +1302,7 @@ export function CanvasPage() {
   }, [setEdges]);
 
   // 엣지 경로 모양 변경 (curve=곡선 / straight=직선 / step=계단) — 꺾기(waypoint) 있으면 해제
-  const changeEdgeShape = useCallback((shape: 'curve' | 'straight' | 'step') => {
+  const changeEdgeShape = useCallback((shape: 'curve' | 'straight' | 'rounded') => {
     if (!contextMenu?.edgeId) return;
     isDirty.current = true;
     setEdges((es) => es.map((e) => e.id === contextMenu.edgeId
@@ -2078,7 +2080,7 @@ export function CanvasPage() {
                 <div className="px-3 py-2">
                   <p className="text-[11px] text-gray-400 mb-1.5">선 모양</p>
                   <div className="flex items-center gap-1">
-                    {([['curve','곡선'],['straight','직선'],['step','계단']] as const).map(([t, label]) => (
+                    {([['curve','곡선'],['straight','직선'],['rounded','둥근']] as const).map(([t, label]) => (
                       <button key={t} onClick={() => changeEdgeShape(t)}
                         className="flex-1 text-[11px] px-2 py-1 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors">
                         {label}
