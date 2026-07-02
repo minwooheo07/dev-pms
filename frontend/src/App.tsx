@@ -30,6 +30,9 @@ import { TemplatesPage } from './pages/templates/TemplatesPage';
 import { MentionPopup } from './components/MentionPopup';
 import { QATestPage } from './pages/qa/QATestPage';
 import { WbsPage } from './pages/projects/WbsPage';
+import { FormListPage } from './pages/forms/FormListPage';
+import { FormBuilderPage } from './pages/forms/FormBuilderPage';
+import { FormSubmissionsPage } from './pages/forms/FormSubmissionsPage';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)();
@@ -92,6 +95,9 @@ export default function App() {
           <Route path="workload" element={<WorkloadPage />} />
           <Route path="sheets" element={<SheetListPage />} />
           <Route path="projects/:projectId/sheet/:sheetId" element={<SheetEditorPage />} />
+          <Route path="forms" element={<FormListPage />} />
+          <Route path="projects/:projectId/forms/:formId/builder" element={<FormBuilderPage />} />
+          <Route path="projects/:projectId/forms/:formId/submissions" element={<FormSubmissionsPage />} />
           <Route path="meeting-calendar" element={<MeetingCalendarPage />} />
           <Route path="templates" element={<TemplatesPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
