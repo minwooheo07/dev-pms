@@ -374,8 +374,8 @@ export function WorkloadPage() {
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, '워크로드');
-    const filename = `워크로드_${filterStart || '전체'}_${filterEnd || '전체'}.xlsx`;
+    XLSX.utils.book_append_sheet(wb, ws, '일감');
+    const filename = `일감_${filterStart || '전체'}_${filterEnd || '전체'}.xlsx`;
     XLSX.writeFile(wb, filename);
   };
 
@@ -420,7 +420,7 @@ export function WorkloadPage() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <PageHeader
-        title="워크로드"
+        title="일감 관리"
         description="담당자별 일감 등록 및 공수 현황"
         actions={
           <div className="flex items-center gap-2">
@@ -1441,7 +1441,7 @@ export function WorkloadPage() {
                     <BarChart2 size={16} className="text-white" />
                   </div>
                   <div>
-                    <h2 className="text-base font-bold text-gray-800">워크로드 그래프</h2>
+                    <h2 className="text-base font-bold text-gray-800">일감 그래프</h2>
                     <p className="text-xs text-gray-400">{filterStart || '전체'} {filterEnd ? `~ ${filterEnd}` : ''}</p>
                   </div>
                 </div>

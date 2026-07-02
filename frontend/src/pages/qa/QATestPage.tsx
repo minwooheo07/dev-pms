@@ -163,7 +163,7 @@ export function QATestPage() {
         {isLoading ? (
           <div className="flex items-center justify-center h-40 text-gray-400 text-sm">로딩 중...</div>
         ) : !tests || tests.length === 0 ? (
-          <EmptyState icon={<FlaskConical size={32} />} title="QA 테스트가 없습니다." description="워크로드 상세에서 QA요청 버튼을 눌러 등록하세요." />
+          <EmptyState icon={<FlaskConical size={32} />} title="QA 테스트가 없습니다." description="일감 상세에서 QA요청 버튼을 눌러 등록하세요." />
         ) : (
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <table className="w-full text-sm">

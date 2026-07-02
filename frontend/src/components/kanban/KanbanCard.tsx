@@ -222,7 +222,7 @@ export function KanbanCard({ task, overlay, canDelete }: KanbanCardProps) {
               <span
                 title={wlStats.overdue
                   ? `마감일 경과 · 완료 이상이 아닌 일감 ${wlStats.total - wlStats.completed}건`
-                  : `워크로드 완료 ${wlStats.completed} / 전체 ${wlStats.total}`}
+                  : `일감 완료 ${wlStats.completed} / 전체 ${wlStats.total}`}
                 className={cn(
                   'ml-auto flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border',
                   wlStats.overdue

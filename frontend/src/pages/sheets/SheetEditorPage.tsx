@@ -1587,7 +1587,7 @@ export function SheetEditorPage() {
       {/* ── 칸반 태스크 생성 미리보기 모달 ── */}
       {kanbanRows && (() => {
         const groupCount = new Map<string, number>();
-        kanbanRows.forEach(r => groupCount.set(r.category, (groupCount.get(r.category) ?? 0) + 1));
+        kanbanRows.forEach(r => { const cat = r.category ?? '(미지정)'; groupCount.set(cat, (groupCount.get(cat) ?? 0) + 1); });
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setKanbanRows(null)} />

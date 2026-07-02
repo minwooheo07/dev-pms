@@ -1,13 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { GridLayout, useContainerWidth, type Layout } from 'react-grid-layout';
+import 'react-grid-layout/css/styles.css';
 import {
-  ChevronLeft, Save, GripVertical, Trash2, Plus, X, Eye, ListChecks,
+  ChevronLeft, Save, Trash2, Plus, X, Eye, ListChecks,
   Heading, AlignLeft, Type, Text, Hash, Coins, CircleDot, ChevronDownSquare, CheckSquare, Calendar,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formsApi, type FormField, type FormFieldType } from '../../api/forms';
-import { FormRenderer } from '../../components/forms/FormRenderer';
+import {
+  FormRenderer, FieldWidget, ensureLayouts, defaultH, GRID_COLS, GRID_ROW_H, GRID_MARGIN,
+} from '../../components/forms/FormRenderer';
 import { cn } from '../../lib/utils';
 
 const PALETTE: { type: FormFieldType; label: string; icon: any }[] = [
@@ -34,13 +38,6 @@ const IS_DISPLAY_ONLY: FormFieldType[] = ['title', 'body'];
 
 const uid = () => `f-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-function newField(type: FormFieldType): FormField {
-  const base: FormField = { id: uid(), type, label: DEFAULT_LABEL[type], required: false };
-  if (HAS_OPTIONS.includes(type)) base.options = ['옵션 1', '옵션 2'];
-  if (IS_DISPLAY_ONLY.includes(type)) base.content = DEFAULT_LABEL[type];
-  return base;
-}
-
 export function FormBuilderPage() {
   const { projectId, formId } = useParams<{ projectId: string; formId: string }>();
   const navigate = useNavigate();
@@ -52,10 +49,10 @@ export function FormBuilderPage() {
   const [editingName, setEditingName] = useState(false);
   const [preview, setPreview] = useState(false);
   const [previewValues, setPreviewValues] = useState<Record<string, any>>({});
-  const dragIndex = useRef<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const loadedRef = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const { width, containerRef } = useContainerWidth({ initialWidth: 720 });
 
   const { data: form } = useQuery({
     queryKey: ['form', projectId, formId],
@@ -65,7 +62,8 @@ export function FormBuilderPage() {
 
   useEffect(() => {
     if (form && !loadedRef.current) {
-      setFields(Array.isArray(form.schema) ? form.schema : []);
+      // 구버전(layout 없는) 필드는 로드 시 그리드 레이아웃 자동 부여
+      setFields(ensureLayouts(Array.isArray(form.schema) ? form.schema : []));
       setName(form.name);
       loadedRef.current = true;
     }
@@ -93,7 +91,12 @@ export function FormBuilderPage() {
   };
 
   const addField = (type: FormFieldType) => {
-    const f = newField(type);
+    const f: FormField = { id: uid(), type, label: DEFAULT_LABEL[type], required: false };
+    if (HAS_OPTIONS.includes(type)) f.options = ['옵션 1', '옵션 2'];
+    if (IS_DISPLAY_ONLY.includes(type)) f.content = DEFAULT_LABEL[type];
+    // 맨 아래에 배치 (전체 폭이 아닌 6칸 기본 → 나란히 배치 유도)
+    const bottom = fields.reduce((m, x) => Math.max(m, (x.layout?.y ?? 0) + (x.layout?.h ?? 0)), 0);
+    f.layout = { x: 0, y: bottom, w: type === 'title' || type === 'body' || type === 'multitext' ? 12 : 6, h: defaultH(f) };
     setFields((prev) => [...prev, f]);
     setSelectedId(f.id);
   };
@@ -107,20 +110,13 @@ export function FormBuilderPage() {
     if (selectedId === id) setSelectedId(null);
   };
 
-  const onDragStart = (idx: number) => { dragIndex.current = idx; };
-  const onDragOver = (e: React.DragEvent, idx: number) => { e.preventDefault(); setDragOverIndex(idx); };
-  const onDrop = (idx: number) => {
-    const from = dragIndex.current;
-    dragIndex.current = null;
-    setDragOverIndex(null);
-    if (from === null || from === idx) return;
-    setFields((prev) => {
-      const next = [...prev];
-      const [moved] = next.splice(from, 1);
-      next.splice(idx, 0, moved);
-      return next;
-    });
-  };
+  // 그리드에서 이동/리사이즈 시 layout 반영
+  const onLayoutChange = useCallback((layout: Layout) => {
+    setFields((prev) => prev.map((f) => {
+      const li = layout.find((l) => l.i === f.id);
+      return li ? { ...f, layout: { x: li.x, y: li.y, w: li.w, h: li.h } } : f;
+    }));
+  }, []);
 
   const selected = fields.find((f) => f.id === selectedId) ?? null;
 
@@ -144,6 +140,7 @@ export function FormBuilderPage() {
           </span>
         )}
         <Save size={12} className={cn('transition-opacity duration-200', saveMutation.isPending ? 'text-gray-400 animate-pulse opacity-100' : 'opacity-0')} />
+        <span className="text-[11px] text-gray-400 hidden md:inline">드래그로 이동 · 모서리로 크기 조절 (12칸 그리드 스냅)</span>
 
         <div className="ml-auto flex items-center gap-2">
           <button
@@ -164,7 +161,7 @@ export function FormBuilderPage() {
 
       {preview ? (
         <div className="flex-1 overflow-auto p-6">
-          <div className="max-w-xl mx-auto bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+          <div className="max-w-2xl mx-auto bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
             <FormRenderer fields={fields} values={previewValues} onChange={(id, v) => setPreviewValues((p) => ({ ...p, [id]: v }))} />
           </div>
         </div>
@@ -187,52 +184,57 @@ export function FormBuilderPage() {
             </div>
           </div>
 
-          {/* 중앙 캔버스 */}
-          <div className="flex-1 overflow-y-auto p-6">
-            <div className="max-w-xl mx-auto flex flex-wrap gap-2">
-              {fields.length === 0 && (
-                <div className="w-full text-center py-16 text-sm text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+          {/* 중앙 캔버스 — 12칸 그리드에 자유 배치(드래그 이동 + 리사이즈, 스냅) */}
+          <div className="flex-1 overflow-y-auto p-6" onClick={() => setSelectedId(null)}>
+            <div
+              ref={containerRef}
+              className="max-w-2xl mx-auto bg-white border border-gray-200 rounded-xl p-4 shadow-sm min-h-[400px]"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                backgroundImage: 'radial-gradient(circle, #e5e7eb 1px, transparent 1px)',
+                backgroundSize: `${Math.max(1, (width - 32) / GRID_COLS)}px ${GRID_ROW_H + GRID_MARGIN[1]}px`,
+              }}
+            >
+              {fields.length === 0 ? (
+                <div className="text-center py-16 text-sm text-gray-400">
                   좌측 위젯을 클릭해서 항목을 추가하세요
                 </div>
-              )}
-              {fields.map((f, idx) => {
-                const Icon = PALETTE.find((p) => p.type === f.type)?.icon ?? Type;
-                const w = f.width ?? 100;
-                return (
-                  <div
-                    key={f.id}
-                    draggable
-                    onDragStart={() => onDragStart(idx)}
-                    onDragOver={(e) => onDragOver(e, idx)}
-                    onDrop={() => onDrop(idx)}
-                    onClick={() => setSelectedId(f.id)}
-                    style={{ flexBasis: `calc(${w}% - 8px)`, flexGrow: 0, flexShrink: 0 }}
-                    className={cn(
-                      'group flex items-center gap-2 px-3 py-2.5 rounded-lg border bg-white cursor-pointer transition-colors',
-                      selectedId === f.id ? 'border-primary-400 ring-2 ring-primary-100' : 'border-gray-200 hover:border-gray-300',
-                      dragOverIndex === idx && 'border-t-2 border-t-primary-500',
-                    )}
-                  >
-                    <GripVertical size={14} className="text-gray-300 cursor-grab flex-shrink-0" />
-                    <Icon size={15} className="text-gray-400 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-700 truncate">{f.label}</p>
-                      <p className="text-[11px] text-gray-400">
-                        {PALETTE.find((p) => p.type === f.type)?.label}
-                        {w !== 100 && <span className="ml-1 text-primary-500">· {WIDTH_OPTIONS.find((o) => o.value === w)?.label ?? `${w}%`}</span>}
-                        {f.fontSize && <span className="ml-1 text-primary-500">· {f.fontSize}px</span>}
-                      </p>
-                    </div>
-                    {f.required && <span className="text-[10px] text-red-500 flex-shrink-0">필수</span>}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); removeField(f.id); }}
-                      className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-opacity flex-shrink-0"
+              ) : (
+                <GridLayout
+                  width={width - 32 /* 컨테이너 p-4 보정 */}
+                  layout={fields.map((f) => ({ i: f.id, ...(f.layout ?? { x: 0, y: 0, w: 6, h: defaultH(f) }), minW: 2, minH: 1 }))}
+                  gridConfig={{ cols: GRID_COLS, rowHeight: GRID_ROW_H, margin: [...GRID_MARGIN], containerPadding: [0, 0] }}
+                  dragConfig={{ enabled: true, cancel: '.rgl-no-drag' }}
+                  resizeConfig={{ enabled: true, handles: ['e', 'se', 's'] }}
+                  onLayoutChange={onLayoutChange}
+                >
+                  {fields.map((f) => (
+                    <div
+                      key={f.id}
+                      onClick={(e) => { e.stopPropagation(); setSelectedId(f.id); }}
+                      className={cn(
+                        'group rounded-lg border bg-white px-2.5 py-1.5 cursor-move transition-shadow',
+                        selectedId === f.id
+                          ? 'border-primary-400 ring-2 ring-primary-100 shadow-sm'
+                          : 'border-transparent hover:border-gray-200 hover:shadow-sm',
+                      )}
                     >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                );
-              })}
+                      {/* 위젯 미리보기 (조작 불가) */}
+                      <div className="pointer-events-none w-full h-full">
+                        <FieldWidget field={f} value={undefined} readOnly />
+                      </div>
+                      {/* 삭제 버튼 */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeField(f.id); }}
+                        className="rgl-no-drag absolute top-1 right-1 opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded bg-white/90 border border-gray-200 text-gray-400 hover:text-red-500 transition-opacity z-10"
+                        title="삭제"
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  ))}
+                </GridLayout>
+              )}
             </div>
           </div>
 
@@ -250,15 +252,6 @@ export function FormBuilderPage() {
   );
 }
 
-const WIDTH_OPTIONS = [
-  { value: 100, label: '전체' },
-  { value: 75, label: '3/4' },
-  { value: 66, label: '2/3' },
-  { value: 50, label: '1/2' },
-  { value: 33, label: '1/3' },
-  { value: 25, label: '1/4' },
-];
-
 function FieldProperties({ field, onChange }: { field: FormField; onChange: (patch: Partial<FormField>) => void }) {
   const isDisplay = IS_DISPLAY_ONLY.includes(field.type);
   const hasOptions = HAS_OPTIONS.includes(field.type);
@@ -273,27 +266,7 @@ function FieldProperties({ field, onChange }: { field: FormField; onChange: (pat
   return (
     <div className="space-y-4">
       <p className="text-xs font-semibold text-gray-400">{PALETTE.find((p) => p.type === field.type)?.label} 속성</p>
-
-      {/* 폭 — 좁히면 옆 항목과 나란히 배치 */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-medium text-gray-500">폭 (좁히면 옆 항목과 나란히 배치)</label>
-        <div className="grid grid-cols-3 gap-1">
-          {WIDTH_OPTIONS.map((w) => (
-            <button
-              key={w.value}
-              onClick={() => onChange({ width: w.value })}
-              className={cn(
-                'text-xs px-2 py-1.5 rounded-lg border transition-colors',
-                (field.width ?? 100) === w.value
-                  ? 'bg-primary-600 text-white border-primary-600'
-                  : 'border-gray-200 text-gray-500 hover:border-gray-300',
-              )}
-            >
-              {w.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <p className="text-[11px] text-gray-400 -mt-2">위치·크기는 캔버스에서 드래그/모서리로 조절 (12칸 스냅)</p>
 
       {/* 글자 크기 */}
       <div className="flex flex-col gap-1.5">

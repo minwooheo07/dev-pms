@@ -9,7 +9,7 @@ const tabs = [
   { to: 'wbs', label: 'WBS', icon: ListTree, end: false },
   { to: 'kanban', label: '칸반보드', icon: Kanban, end: false },
   { to: 'gantt', label: '간트차트', icon: BarChart3, end: false },
-  { to: 'workload', label: '워크로드', icon: BarChart2, end: false },
+  { to: 'workload', label: '일감 관리', icon: BarChart2, end: false },
   { to: 'meetings', label: '회의록', icon: FileText, end: false },
   { to: 'issues', label: '이슈관리', icon: AlertTriangle, end: false },
   { to: 'notices', label: '공지사항', icon: Megaphone, end: false },

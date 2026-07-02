@@ -13,9 +13,10 @@ export interface FormField {
   required?: boolean;
   options?: string[]; // singleSelect / dropdown / checkbox
   content?: string; // title / body 표시용 텍스트
-  width?: number; // 폭 % (25/33/50/66/75/100, 기본 100) — 좁히면 옆 항목과 나란히 배치
+  width?: number; // (구버전 호환) 폭 % — layout 없을 때 12컬럼 환산에 사용
   fontSize?: number; // 글자 크기 px (기본: title 16, body 14, 입력 14)
   align?: 'left' | 'center' | 'right'; // title/body 정렬
+  layout?: { x: number; y: number; w: number; h: number }; // 12컬럼 그리드 배치 (드래그/리사이즈)
 }
 
 export interface FormTemplate {

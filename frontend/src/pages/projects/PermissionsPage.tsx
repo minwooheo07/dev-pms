@@ -46,10 +46,10 @@ const PERMISSIONS: {
     ],
   },
   {
-    section: '워크로드 (일감)',
+    section: '일감 관리',
     items: [
-      { label: '일감 등록', desc: '워크로드 일감 등록', allowed: ['OWNER', 'ADMIN', 'MEMBER'] },
-      { label: '일감 조회', desc: '워크로드 현황 조회', allowed: ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER'] },
+      { label: '일감 등록', desc: '일감 등록', allowed: ['OWNER', 'ADMIN', 'MEMBER'] },
+      { label: '일감 조회', desc: '일감 현황 조회', allowed: ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER'] },
       { label: '일감 수정/삭제', desc: '본인 일감 또는 관리자', allowed: ['OWNER', 'ADMIN', 'MEMBER'] },
     ],
   },
