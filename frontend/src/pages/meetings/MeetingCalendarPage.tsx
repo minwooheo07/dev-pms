@@ -159,7 +159,7 @@ export function MeetingCalendarPage() {
     return days;
   }, [calMonth]);
 
-  // 날짜별 회의 매핑
+  // 날짜별 회의 매핑 (시작 시간 순 정렬, 시간 미지정은 뒤로)
   const meetingsByDate = useMemo(() => {
     const map: Record<string, any[]> = {};
     (meetings ?? []).forEach((m: any) => {
@@ -167,6 +167,9 @@ export function MeetingCalendarPage() {
       if (!map[key]) map[key] = [];
       map[key].push(m);
     });
+    Object.values(map).forEach((list) =>
+      list.sort((a, b) => (a.startTime || '99:99').localeCompare(b.startTime || '99:99')),
+    );
     return map;
   }, [meetings]);
 
